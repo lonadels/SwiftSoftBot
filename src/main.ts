@@ -28,13 +28,10 @@ const menu = new Menu("mainMenu").text(
   (ctx) => {
     assOpen = !assOpen;
     ctx.editMessageText(assStatus(), { parse_mode: "MarkdownV2" });
-    ctx.menu.nav("submenu");
+    ctx.menu.update();
   }
 );
 
-const subMenu = new Menu("submenu").back("← Назад");
-
-menu.register(subMenu);
 bot.use(menu);
 
 bot.command("start", (ctx) => {
