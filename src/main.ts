@@ -32,6 +32,7 @@ const menu = new Menu("mainMenu").text(
 const subMenu = new Menu("submenu").text("← Назад");
 
 menu.register(subMenu);
+bot.use(menu);
 
 bot.command("start", (ctx) => {
   ctx.reply("*Почему чешется жопа?*\nОбычно потому что глисты\\.", {
@@ -43,7 +44,5 @@ bot.command("start", (ctx) => {
 bot.command("ass", (ctx) => {
   ctx.reply(`Жопа ${assOpen ? "открыта" : "закрыта"}`, { reply_markup: menu });
 });
-
-bot.use(menu);
 
 bot.start();
