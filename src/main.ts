@@ -29,7 +29,7 @@ const menu = new Menu("mainMenu").text(
   }
 );
 
-const subMenu = new Menu("submenu").text("← Назад");
+const subMenu = new Menu("submenu").back("← Назад");
 
 menu.register(subMenu);
 bot.use(menu);
