@@ -33,7 +33,7 @@ const menu = new Menu("mainMenu", { autoAnswer: false }).text(
     });
 
     await ctx.editMessageText(assStatus(), { parse_mode: "MarkdownV2" });
-    ctx.menu.update();
+    // ctx.menu.update();
   }
 );
 
