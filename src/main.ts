@@ -20,11 +20,14 @@ bot.use(hydrateReply);
 
 let assOpen: boolean = false;
 
+const assStatus = () =>
+  `*Статус жопы:* Жопа ${assOpen ? "открыта" : "закрыта"}`;
+
 const menu = new Menu("mainMenu").text(
   () => (assOpen ? "Открыть жопу" : "Закрыть жопу"),
   (ctx) => {
     assOpen = !assOpen;
-    ctx.editMessageText(`Жопа ${assOpen ? "открыта" : "закрыта"}`);
+    ctx.editMessageText(assStatus(), { parse_mode: "MarkdownV2" });
     ctx.menu.nav("submenu");
   }
 );
@@ -42,7 +45,7 @@ bot.command("start", (ctx) => {
 });
 
 bot.command("ass", (ctx) => {
-  ctx.reply(`Жопа ${assOpen ? "открыта" : "закрыта"}`, { reply_markup: menu });
+  ctx.reply(assStatus(), { reply_markup: menu, parse_mode: "MarkdownV2" });
 });
 
 bot.start();
