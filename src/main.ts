@@ -63,7 +63,7 @@ bot.hears(/(md|markdown|marked|mark) *(.+)?/ms, async (ctx) => {
           .replace(/\./g, "\\.")
           .replace(/\(/g, "\\(")
           .replace(/\)/g, "\\)")
-      : `*Использование:* ${ctx.match[1]} _текст_/`,
+      : `*Использование:* /${ctx.match[1]} _текст_`,
     {
       parse_mode: "MarkdownV2",
     }
