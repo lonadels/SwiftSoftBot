@@ -6,6 +6,11 @@ import { ParseModeFlavor, hydrateReply } from "@grammyjs/parse-mode";
 import { Context, Bot, BotError, GrammyError, HttpError } from "grammy";
 import { Menu } from "@grammyjs/menu";
 
+import fs from "node:fs";
+import { marked } from "marked";
+import { escapers, toHTML, toMarkdownV2 } from "@telegraf/entity";
+import FixMarkdown from "./fix";
+
 export type BotContext = ParseModeFlavor<Context>;
 
 const bot = new Bot<BotContext>(process.env.BOT_TOKEN!);
@@ -22,6 +27,8 @@ let assOpen: boolean = false;
 
 const assStatus = () =>
   `*Статус жопы:* Жопа ${assOpen ? "открыта" : "закрыта"}`;
+
+const data = fs.readFileSync("./text.md", "utf8");
 
 const menu = new Menu("mainMenu", { autoAnswer: false }).text(
   () => (assOpen ? "Закрыть жопу" : "Открыть жопу"),
@@ -49,6 +56,25 @@ bot.command("start", (ctx) => {
 bot.command("ass", (ctx) => {
   ctx.reply(assStatus(), { reply_markup: menu, parse_mode: "MarkdownV2" });
 });
+
+// Matches the message text against a string or a regular expression.
+bot.hears(/(md|markdown|marked|mark) *(.+)?/ms, async (ctx) => {
+  const match = ctx.match;
+  if (match[2])
+    ctx.reply(
+      match[2]
+        .replace(/^#+(.+)$/gm, "*$1*")
+        .replace(/-/g, "\\-")
+        .replace(/\./g, "\\.")
+        .replace(/\(/g, "\\(")
+        .replace(/\)/g, "\\)"),
+      {
+        parse_mode: "MarkdownV2",
+      }
+    );
+});
+
+bot.command("md", async (ctx) => {});
 
 function errorHandler(err: BotError<BotContext>) {
   const ctx = err.ctx;
