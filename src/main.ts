@@ -4,6 +4,7 @@ dotenv.config(); // ALWAYS BE FIRST!
 import { autoRetry } from "@grammyjs/auto-retry";
 import { ParseModeFlavor, hydrateReply } from "@grammyjs/parse-mode";
 import { Context, Bot } from "grammy";
+import { Menu } from "@grammyjs/menu";
 
 export type BotContext = ParseModeFlavor<Context>;
 
@@ -17,11 +18,32 @@ bot.api.setMyDescription("Бот SwiftSoft");
 
 bot.use(hydrateReply);
 
+let assOpen: boolean = false;
+
+const menu = new Menu("mainMenu").text(
+  () => (assOpen ? "Открыть жопу" : "Закрыть жопу"),
+  (ctx) => {
+    assOpen = !assOpen;
+    ctx.editMessageText(`Жопа ${assOpen ? "открыта" : "закрыта"}`);
+    ctx.menu.nav("submenu");
+  }
+);
+
+const subMenu = new Menu("submenu").text("← Назад");
+
+menu.register(subMenu);
+
 bot.command("start", (ctx) => {
   ctx.reply("*Почему чешется жопа?*\nОбычно потому что глисты\\.", {
     parse_mode: "MarkdownV2",
   });
   ctx.reply("```Пиздец ты даун```", { parse_mode: "MarkdownV2" });
 });
+
+bot.command("ass", (ctx) => {
+  ctx.reply(`Жопа ${assOpen ? "открыта" : "закрыта"}`);
+});
+
+bot.use(menu);
 
 bot.start();
