@@ -41,7 +41,7 @@ bot.command("start", (ctx) => {
 });
 
 bot.command("ass", (ctx) => {
-  ctx.reply(`Жопа ${assOpen ? "открыта" : "закрыта"}`);
+  ctx.reply(`Жопа ${assOpen ? "открыта" : "закрыта"}`, { reply_markup: menu });
 });
 
 bot.use(menu);
