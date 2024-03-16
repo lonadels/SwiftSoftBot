@@ -25,13 +25,15 @@ const assStatus = () =>
 
 const menu = new Menu("mainMenu", { autoAnswer: false }).text(
   () => (assOpen ? "Закрыть жопу" : "Открыть жопу"),
-  (ctx) => {
+  async (ctx) => {
     assOpen = !assOpen;
-    ctx.editMessageText(assStatus(), { parse_mode: "MarkdownV2" });
-    ctx.menu.update();
-    ctx.answerCallbackQuery({
+
+    await ctx.answerCallbackQuery({
       text: `Жопа ${assOpen ? "открыта" : "закрыта"}`,
     });
+
+    await ctx.editMessageText(assStatus(), { parse_mode: "MarkdownV2" });
+    ctx.menu.update();
   }
 );
 
