@@ -18,7 +18,7 @@ bot.api.config.use(autoRetry());
 bot.api.setMyCommands([
   { command: "start", description: "Запустить бота" },
   { command: "ass", description: "Интерфейс жопы" },
-  { command: "md", description: "Форматирование текста" },
+  { command: "md", description: "Форматирование" },
 ]);
 
 bot.api.setMyDescription("Бот SwiftSoft");
