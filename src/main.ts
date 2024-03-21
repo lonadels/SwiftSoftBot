@@ -3,7 +3,14 @@ dotenv.config(); // ALWAYS BE FIRST!
 
 import { autoRetry } from "@grammyjs/auto-retry";
 import { ParseModeFlavor, hydrateReply } from "@grammyjs/parse-mode";
-import { Context, Bot, BotError, GrammyError, HttpError } from "grammy";
+import {
+  Context,
+  Bot,
+  BotError,
+  GrammyError,
+  HttpError,
+  Keyboard,
+} from "grammy";
 import { Menu, MenuFlavor } from "@grammyjs/menu";
 
 import FixMarkdown from "./fix";
@@ -19,6 +26,7 @@ bot.api.setMyCommands([
   { command: "start", description: "Запустить бота" },
   { command: "ass", description: "Интерфейс жопы" },
   { command: "md", description: "Форматирование" },
+  { command: "throttle", description: "Тест задержки" },
 ]);
 
 bot.api.setMyDescription("Бот SwiftSoft");
@@ -60,6 +68,17 @@ const menu = new Menu("mainMenu", {
 );
 
 bot.use(menu);
+
+bot.command("throttle", async (ctx) => {
+  ctx.reply("🕙 Подожди, я щас пукну...", {
+    reply_parameters: {
+      allow_sending_without_reply: false,
+      message_id: ctx.message!.message_id,
+    },
+  });
+  await new Promise((r) => setTimeout(r, 2000));
+  ctx.editMessageText("💨 💨 💨");
+});
 
 bot.command("start", (ctx) => {
   ctx.reply(
