@@ -10,6 +10,7 @@ import {
   GrammyError,
   HttpError,
   Keyboard,
+  HearsContext,
 } from "grammy";
 import { Menu, MenuFlavor } from "@grammyjs/menu";
 
@@ -18,6 +19,21 @@ import { escapers } from "@telegraf/entity";
 import { hydrate, HydrateFlavor } from "@grammyjs/hydrate";
 
 export type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
+
+/* import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
+
+async function main() {
+  const completion = await openai.chat.completions.create({
+    messages: [{ role: "system", content: "You are a helpful assistant." }],
+    model: "gpt-3.5-turbo",
+  });
+
+  console.log(completion.choices[0]);
+}
+
+main(); */
 
 const bot = new Bot<BotContext>(process.env.BOT_TOKEN!);
 
@@ -91,6 +107,30 @@ bot.command("start", (ctx) => {
 });
 
 bot.command("ass", initAss);
+
+function jokeAnswer(match: string | RegExpMatchArray, answer: string = "Пиз") {
+  const isUpper = match[1] === match[1].toUpperCase();
+  const isLower = match[1] === match[1].toLowerCase();
+  const isCamel =
+    match[1][0] === match[1][0].toUpperCase() &&
+    match[1][1] === match[1][1].toLowerCase();
+
+  return `${
+    isUpper ? answer.toUpperCase() : isLower ? answer.toLowerCase() : answer
+  }${isCamel ? match[1].toLowerCase() : match[1]}`;
+}
+
+bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
+  ctx.reply(
+    jokeAnswer(ctx.match, ctx.match[2].toLowerCase() == "да" ? "Пиз" : "Ми"),
+    {
+      reply_parameters: {
+        allow_sending_without_reply: false,
+        message_id: ctx.message!.message_id,
+      },
+    }
+  );
+});
 
 bot.hears(/(md|markdown|marked|mark) *(.+)?/ms, async (ctx) => {
   const match = ctx.match[2];
