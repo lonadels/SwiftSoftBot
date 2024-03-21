@@ -15,8 +15,9 @@ import { Menu, MenuFlavor } from "@grammyjs/menu";
 
 import FixMarkdown from "./fix";
 import { escapers } from "@telegraf/entity";
+import { hydrate, HydrateFlavor } from "@grammyjs/hydrate";
 
-export type BotContext = ParseModeFlavor<Context> & MenuFlavor;
+export type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
 
 const bot = new Bot<BotContext>(process.env.BOT_TOKEN!);
 
@@ -31,6 +32,7 @@ bot.api.setMyCommands([
 
 bot.api.setMyDescription("Бот SwiftSoft");
 
+bot.use(hydrate());
 bot.use(hydrateReply);
 
 let assOpen: boolean = false;
@@ -70,14 +72,14 @@ const menu = new Menu("mainMenu", {
 bot.use(menu);
 
 bot.command("throttle", async (ctx) => {
-  ctx.reply("🕙 Подожди, я щас пукну...", {
+  const msg = await ctx.reply("🕙 Подожди, я щас пукну...", {
     reply_parameters: {
       allow_sending_without_reply: false,
       message_id: ctx.message!.message_id,
     },
   });
   await new Promise((r) => setTimeout(r, 2000));
-  ctx.editMessageText("💨 💨 💨");
+  msg.editText("💨 💨 💨");
 });
 
 bot.command("start", (ctx) => {
