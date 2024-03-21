@@ -78,8 +78,7 @@ bot.command("throttle", async (ctx) => {
       message_id: ctx.message!.message_id,
     },
   });
-  await new Promise((r) => setTimeout(r, 2000));
-  await msg.editText("Пук!!! 💨 💨 💨 ");
+  setTimeout(async () => await msg.editText("Пук!!! 💨 💨 💨 "), 2000);
 });
 
 bot.command("start", (ctx) => {
