@@ -79,7 +79,7 @@ bot.command("throttle", async (ctx) => {
     },
   });
   await new Promise((r) => setTimeout(r, 2000));
-  msg.editText("💨 💨 💨");
+  msg.editText("Пук!!! 💨 💨 💨 ");
 });
 
 bot.command("start", (ctx) => {
