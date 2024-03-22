@@ -20,20 +20,9 @@ import { hydrate, HydrateFlavor } from "@grammyjs/hydrate";
 
 export type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
 
-/* import OpenAI from "openai";
+import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
-
-async function main() {
-  const completion = await openai.chat.completions.create({
-    messages: [{ role: "system", content: "You are a helpful assistant." }],
-    model: "gpt-3.5-turbo",
-  });
-
-  console.log(completion.choices[0]);
-}
-
-main(); */
 
 const bot = new Bot<BotContext>(process.env.BOT_TOKEN!);
 
@@ -120,6 +109,8 @@ function jokeAnswer(match: string | RegExpMatchArray, answer: string = "Пиз")
   }${isCamel ? match[1].toLowerCase() : match[1]}`;
 }
 
+const jokeAnswers = { да: "Пиз", нет: "Мин", Ъ: "Пиз" };
+
 bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
   ctx.reply(
     jokeAnswer(ctx.match, ctx.match[2].toLowerCase() == "да" ? "Пиз" : "Ми"),
@@ -132,7 +123,55 @@ bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
   );
 });
 
-bot.hears(/(md|markdown|marked|mark) *(.+)?/ms, async (ctx) => {
+bot.hears(/(gpt3|гпт3|свифи) *(.+)?/ims, async (ctx) => {
+  const msg = await ctx.reply("...", {
+    reply_parameters: {
+      allow_sending_without_reply: false,
+      message_id: ctx.message!.message_id,
+    },
+  });
+
+  const completion = await openai.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content:
+          "ты очень ня-кавай девочка как в аниме, вежливо общайся, избегай матов и нецензурных выражений, иногда добавляй няшные смайлики из символов в конце ответа.",
+      },
+      {
+        role: "system",
+        content: `твоё имя\n\n"""\nСвифи\n"""`,
+      },
+      {
+        role: "system",
+        content: "ты женского рода.",
+      },
+      {
+        role: "system",
+        content: "не говори о себе в третьем лице.",
+      },
+      {
+        role: "system",
+        content: "начинай предложения со строчных букв (если это не имя).",
+      },
+      {
+        role: "system",
+        content: `имя пользоватея\n\n"""\n${ctx.from?.first_name}\n"""`,
+      },
+      {
+        role: "user",
+        content: ctx.match[2],
+      },
+    ],
+    model: "gpt-3.5-turbo",
+  });
+
+  await msg.editText(
+    completion.choices[0].message.content ?? "💭 Возникла проблема"
+  );
+});
+
+bot.hears(/^\/(md|markdown|marked|mark) *(.+)?/ims, async (ctx) => {
   const match = ctx.match[2];
   try {
     await ctx.reply(
