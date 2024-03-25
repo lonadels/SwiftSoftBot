@@ -11,6 +11,7 @@ import {
   HttpError,
   Keyboard,
   HearsContext,
+  NextFunction,
 } from "grammy";
 import { Menu, MenuFlavor } from "@grammyjs/menu";
 
