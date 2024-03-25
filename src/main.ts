@@ -1,4 +1,6 @@
 import * as dotenv from "dotenv";
+import { run, sequentialize } from "@grammyjs/runner";
+
 dotenv.config(); // ALWAYS BE FIRST!
 
 import { autoRetry } from "@grammyjs/auto-retry";
@@ -40,6 +42,14 @@ bot.api.setMyDescription("Бот SwiftSoft");
 
 bot.use(hydrate());
 bot.use(hydrateReply);
+
+bot.use(
+  sequentialize((ctx) => {
+    const chat = ctx.chat?.id.toString();
+    const user = ctx.from?.id.toString();
+    return [chat, user].filter((con) => con !== undefined);
+  })
+);
 
 let assOpen: boolean = false;
 
@@ -224,4 +234,4 @@ async function errorBoundary(err: BotError<BotContext>, next: NextFunction) {
 bot.errorBoundary(errorBoundary);
 bot.catch(errorHandler);
 
-bot.start();
+run(bot);
