@@ -109,8 +109,6 @@ function jokeAnswer(match: string | RegExpMatchArray, answer: string = "Пиз")
   }${isCamel ? match[1].toLowerCase() : match[1]}`;
 }
 
-const jokeAnswers = { да: "Пиз", нет: "Мин", Ъ: "Пиз" };
-
 bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
   ctx.reply(
     jokeAnswer(ctx.match, ctx.match[2].toLowerCase() == "да" ? "Пиз" : "Ми"),
@@ -121,6 +119,10 @@ bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
       },
     }
   );
+});
+
+bot.on(":text", (ctx) => {
+  ctx.
 });
 
 bot.hears(/(gpt3|гпт3|свифи) *(.+)?/ims, async (ctx) => {
@@ -206,8 +208,9 @@ function errorHandler(err: BotError<BotContext>) {
   } else {
     console.error("Unknown error:", e);
   }
+  return true;
 }
 
-bot.catch(errorHandler);
-
 bot.start();
+
+bot.catch(errorHandler);
