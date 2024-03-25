@@ -193,7 +193,7 @@ bot.hears(/^\/(md|markdown|marked|mark) *(.+)?/ims, async (ctx) => {
   }
 });
 
-function errorHandler(err: BotError<BotContext>) {
+async function errorHandler(err: BotError<BotContext>, next: NextFunction) {
   const ctx = err.ctx;
   console.error(`Error while handling update ${ctx.update.update_id}:`);
   const e = err.error;
@@ -204,9 +204,9 @@ function errorHandler(err: BotError<BotContext>) {
   } else {
     console.error("Unknown error:", e);
   }
-  return true;
+  await next();
 }
 
-bot.start();
-
 bot.catch(errorHandler);
+
+bot.start();
