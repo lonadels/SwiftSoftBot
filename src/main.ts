@@ -121,10 +121,6 @@ bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
   );
 });
 
-bot.on(":text", (ctx) => {
-  ctx.
-});
-
 bot.hears(/(gpt3|гпт3|свифи) *(.+)?/ims, async (ctx) => {
   const msg = await ctx.reply("...", {
     reply_parameters: {
