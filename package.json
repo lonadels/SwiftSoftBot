@@ -52,6 +52,6 @@
     "openai": "^4.29.2",
     "pg": "^8.11.3",
     "reflect-metadata": "^0.2.1",
-    "typeorm": "^0.3.19"
+    "typeorm": "^0.3.20"
   }
 }

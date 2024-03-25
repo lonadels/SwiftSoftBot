@@ -17,8 +17,6 @@ import {
 } from "grammy";
 import { Menu, MenuFlavor } from "@grammyjs/menu";
 
-import FixMarkdown from "./fix";
-import { escapers } from "@telegraf/entity";
 import { hydrate, HydrateFlavor } from "@grammyjs/hydrate";
 
 export type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
@@ -40,74 +38,18 @@ bot.api.config.use(autoRetry());
 );
  */
 
-bot.api.setMyCommands([
-  { command: "start", description: "Запустить бота" },
-  { command: "ass", description: "Интерфейс жопы" },
-  { command: "md", description: "Форматирование" },
-  { command: "throttle", description: "Тест задержки" },
-]);
+bot.api.setMyCommands([{ command: "start", description: "Запустить бота" }]);
 
 bot.api.setMyDescription("Бот SwiftSoft");
 
 bot.use(hydrate());
 bot.use(hydrateReply);
 
-let assOpen: boolean = false;
-
-const assStatus = () => `Жопа ${assOpen ? "🟢 открыта" : "🔴 закрыта"}`;
-
-const initAss = (ctx: BotContext) => {
-  ctx.reply(assStatus(), { reply_markup: menu, parse_mode: "MarkdownV2" });
-};
-const menu = new Menu("mainMenu", {
-  autoAnswer: false,
-  onMenuOutdated: async (ctx) => {
-    await ctx.answerCallbackQuery({
-      text: assStatus(),
-    });
-    await ctx.editMessageText(assStatus(), {
-      reply_markup: menu,
-      parse_mode: "MarkdownV2",
-    });
-    return true;
-  },
-}).text(
-  () => (assOpen ? "Закрыть жопу" : "Открыть жопу"),
-  async (ctx) => {
-    assOpen = !assOpen;
-
-    await ctx.answerCallbackQuery({
-      text: assStatus(),
-    });
-
-    try {
-      await ctx.editMessageText(assStatus(), { parse_mode: "MarkdownV2" });
-    } catch (_) {}
-  }
-);
-
-bot.use(menu);
-
-bot.command("throttle", async (ctx) => {
-  const msg = await ctx.reply("🕙 Подожди, я щас пукну...", {
-    reply_parameters: {
-      allow_sending_without_reply: false,
-      message_id: ctx.message!.message_id,
-    },
-  });
-  setTimeout(async () => await msg.editText("Пук!!! 💨 💨 💨 "), 2000);
-});
-
 bot.command("start", (ctx) => {
   ctx.reply(
-    "*Почему чешется жопа?*\nОбычно потому что глисты\n```\nпиздец ты даун```",
-    {
-      parse_mode: "MarkdownV2",
-    }
+    "Привет! Меня зовут Свифи. Для разговора в беседах Вы можете обращаться ко мне по имени."
   );
 });
-
-bot.command("ass", initAss);
 
 function jokeAnswer(match: string | RegExpMatchArray, answer: string = "Пиз") {
   const isUpper = match[1] === match[1].toUpperCase();
@@ -133,76 +75,41 @@ bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
   );
 });
 
-bot.hears(/^(gpt3|гпт3|свифи) *(.+)?/ims, async (ctx) => {
-  const msg = await ctx.reply("...", {
-    reply_parameters: {
-      allow_sending_without_reply: false,
-      message_id: ctx.message!.message_id,
-    },
-  });
+async function gpt(ctx: BotContext, text: string) {
+  ctx.replyWithChatAction("typing");
 
   const completion = await openai.chat.completions.create({
     messages: [
       {
         role: "system",
-        content:
-          "ты очень ня-кавай девочка как в аниме, вежливо общайся, избегай матов и нецензурных выражений, иногда добавляй няшные смайлики из символов в конце ответа.",
-      },
-      {
-        role: "system",
-        content: `твоё имя\n\n"""\nСвифи\n"""`,
-      },
-      {
-        role: "system",
-        content: "ты женского рода.",
-      },
-      {
-        role: "system",
-        content: "не говори о себе в третьем лице.",
-      },
-      {
-        role: "system",
-        content: "начинай предложения со строчных букв (если это не имя).",
-      },
-      {
-        role: "system",
-        content: `имя пользоватея\n\n"""\n${ctx.from?.first_name}\n"""`,
+        content: `You are a helpful assistant.\nYou name is \n\n"""\nСвифи\n"""\nYou is a woman.\nDon't talk about yourself in the third person.\nName of user is \n\n"""\n${ctx.from?.first_name}\n"""`,
       },
       {
         role: "user",
-        content: ctx.match[2],
+        content: text,
       },
     ],
     model: "gpt-3.5-turbo",
   });
 
-  await msg.editText(
-    completion.choices[0].message.content ?? "💭 Возникла проблема"
+  await ctx.reply(
+    completion.choices[0].message?.content || "💭 Возникла проблема",
+    {
+      reply_parameters: {
+        allow_sending_without_reply: false,
+        message_id: ctx.message!.message_id,
+      },
+    }
   );
+}
+
+bot.hears(/^(свифи|swifie) *(.+)?/ims, async (ctx) => {
+  gpt(ctx, ctx.match[2]);
 });
 
-bot.hears(/^\/(md|markdown|marked|mark) *(.+)?/ims, async (ctx) => {
-  const match = ctx.match[2];
-  try {
-    await ctx.reply(
-      match
-        ? FixMarkdown(match)
-            .replace(/^#+(.+)$/gm, "*$1*")
-            .replace(/-/g, "\\-")
-            .replace(/\./g, "\\.")
-            .replace(/\(/g, "\\(")
-            .replace(/\)/g, "\\)")
-        : `*Использование:* /${ctx.match[1]} _текст_`,
-      {
-        parse_mode: "MarkdownV2",
-      }
-    );
-  } catch (e) {
-    if (e instanceof GrammyError)
-      ctx.replyWithMarkdownV2(
-        `🚫 *Ошибка: *\n\`\`\`${escapers.MarkdownV2(e.description)}\`\`\``
-      );
-  }
+bot.on("message:text", (ctx) => {
+  const text: string = ctx.msg.text;
+  if (ctx.chat.type == "private") gpt(ctx, text);
 });
 
 try {
