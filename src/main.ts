@@ -31,6 +31,15 @@ const bot = new Bot<BotContext>(process.env.BOT_TOKEN!);
 
 bot.api.config.use(autoRetry());
 
+/* bot.use(
+  sequentialize((ctx) => {
+    const chat = ctx.chat?.id.toString();
+    const user = ctx.from?.id.toString();
+    return [chat, user].filter((con) => con !== undefined);
+  })
+);
+ */
+
 bot.api.setMyCommands([
   { command: "start", description: "Запустить бота" },
   { command: "ass", description: "Интерфейс жопы" },
@@ -42,14 +51,6 @@ bot.api.setMyDescription("Бот SwiftSoft");
 
 bot.use(hydrate());
 bot.use(hydrateReply);
-
-bot.use(
-  sequentialize((ctx) => {
-    const chat = ctx.chat?.id.toString();
-    const user = ctx.from?.id.toString();
-    return [chat, user].filter((con) => con !== undefined);
-  })
-);
 
 let assOpen: boolean = false;
 
@@ -132,7 +133,7 @@ bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
   );
 });
 
-bot.hears(/(gpt3|гпт3|свифи) *(.+)?/ims, async (ctx) => {
+bot.hears(/^(gpt3|гпт3|свифи) *(.+)?/ims, async (ctx) => {
   const msg = await ctx.reply("...", {
     reply_parameters: {
       allow_sending_without_reply: false,
@@ -204,34 +205,8 @@ bot.hears(/^\/(md|markdown|marked|mark) *(.+)?/ims, async (ctx) => {
   }
 });
 
-function errorHandler(err: BotError<BotContext>) {
-  const ctx = err.ctx;
-  console.error(`Error while handling update ${ctx.update.update_id}:`);
-  const e = err.error;
-  if (e instanceof GrammyError) {
-    console.error("Error in request:", e.description);
-  } else if (e instanceof HttpError) {
-    console.error("Could not contact Telegram:", e);
-  } else {
-    console.error("Unknown error:", e);
-  }
+try {
+  run(bot);
+} catch (err) {
+  console.error(err);
 }
-
-async function errorBoundary(err: BotError<BotContext>, next: NextFunction) {
-  const ctx = err.ctx;
-  console.error(`Error while handling update ${ctx.update.update_id}:`);
-  const e = err.error;
-  if (e instanceof GrammyError) {
-    console.error("Error in request:", e.description);
-  } else if (e instanceof HttpError) {
-    console.error("Could not contact Telegram:", e);
-  } else {
-    console.error("Unknown error:", e);
-  }
-  await next();
-}
-
-bot.errorBoundary(errorBoundary);
-bot.catch(errorHandler);
-
-run(bot);
