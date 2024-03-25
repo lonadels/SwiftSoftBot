@@ -204,7 +204,6 @@ function errorHandler(err: BotError<BotContext>) {
   } else {
     console.error("Unknown error:", e);
   }
-  await next();
 }
 
 async function errorBoundary(err: BotError<BotContext>, next: NextFunction) {
