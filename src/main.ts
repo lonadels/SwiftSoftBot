@@ -29,15 +29,6 @@ const bot = new Bot<BotContext>(process.env.BOT_TOKEN!);
 
 bot.api.config.use(autoRetry());
 
-/* bot.use(
-  sequentialize((ctx) => {
-    const chat = ctx.chat?.id.toString();
-    const user = ctx.from?.id.toString();
-    return [chat, user].filter((con) => con !== undefined);
-  })
-);
- */
-
 bot.api.setMyCommands([{ command: "start", description: "Запустить бота" }]);
 
 bot.api.setMyDescription("Бот SwiftSoft");
@@ -76,40 +67,46 @@ bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
 });
 
 async function gpt(ctx: BotContext, text: string) {
-  ctx.replyWithChatAction("typing");
+  let answered: boolean = false;
 
-  const completion = await openai.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: `You are a helpful assistant.\nYou name is \n\n"""\nСвифи\n"""\nYou is a woman.\nDon't talk about yourself in the third person.\nName of user is \n\n"""\n${ctx.from?.first_name}\n""".\nYour main language is Russian.`,
-      },
-      {
-        role: "user",
-        content: text,
-      },
-    ],
-    model: "gpt-3.5-turbo",
+  new Promise(async (r) => {
+    do {
+      await ctx.replyWithChatAction("typing");
+      setTimeout(r, 1000);
+    } while (!answered);
   });
 
-  await ctx.reply(
-    completion.choices[0].message?.content || "💭 Возникла проблема",
-    {
-      reply_parameters: {
-        allow_sending_without_reply: false,
-        message_id: ctx.message!.message_id,
-      },
-    }
-  );
+  openai.chat.completions
+    .create({
+      messages: [
+        {
+          role: "system",
+          content: `You are a helpful assistant.\nYou name is \n\n"""\nСвифи\n"""\nYou is a woman.\nDon't talk about yourself in the third person.\nName of user is \n\n"""\n${ctx.from?.first_name}\n""".\nYour main language is Russian.\nDon't swear.`,
+        },
+        {
+          role: "user",
+          content: text,
+        },
+      ],
+      model: "gpt-3.5-turbo",
+    })
+    .then(async (completion) => {
+      answered = true;
+
+      await ctx.reply(
+        completion.choices[0].message?.content || "💭 Возникла проблема",
+        {
+          reply_parameters: {
+            allow_sending_without_reply: false,
+            message_id: ctx.message!.message_id,
+          },
+        }
+      );
+    });
 }
 
-bot.hears(/^(свифи|swifie) *(.+)?/ims, async (ctx) => {
-  gpt(ctx, ctx.match[2]);
-});
-
-bot.on("message:text", (ctx) => {
-  const text: string = ctx.msg.text;
-  if (ctx.chat.type == "private") gpt(ctx, text);
+bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
+  if (ctx.match[2] || ctx.chat.type == "private") gpt(ctx, ctx.match[1]);
 });
 
 try {
