@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as dotenv from "dotenv";
 import { run, sequentialize } from "@grammyjs/runner";
 
@@ -93,6 +94,33 @@ async function gpt(ctx: BotContext, text: string) {
         ]
       : [];
 
+  let base64text: string | undefined;
+
+  if (ctx.message?.photo) {
+    const fileInfo = await ctx.getFile();
+
+    if (fileInfo.file_path) {
+      const url = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN!}/${
+        fileInfo.file_path
+      }`;
+
+      const response = await fetch(url);
+      const buffer = Buffer.from(await response.arrayBuffer());
+      base64text = buffer.toString("base64");
+    }
+  }
+  const img: OpenAI.Chat.Completions.ChatCompletionContentPart[] = base64text
+    ? [
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:image/jpeg;base64,${base64text}`,
+            detail: "auto",
+          },
+        },
+      ]
+    : [];
+
   openai.chat.completions
     .create({
       messages: [
@@ -103,13 +131,21 @@ async function gpt(ctx: BotContext, text: string) {
         ...reply,
         {
           role: "user",
-          content:
-            (ctx.message?.quote
-              ? "```\n" + ctx.message.quote.text + "\n```\n\n"
-              : "") + text,
+          content: [
+            {
+              type: "text",
+              text:
+                (ctx.message?.quote
+                  ? "```\n" + ctx.message.quote.text + "\n```\n\n"
+                  : "") + text,
+            },
+            ...img,
+          ],
         },
       ],
-      model: "gpt-4-turbo-preview",
+      model: ctx.message?.photo
+        ? "gpt-4-vision-preview"
+        : "gpt-4-turbo-preview",
     })
     .then(async (completion) => {
       stopTyping();
