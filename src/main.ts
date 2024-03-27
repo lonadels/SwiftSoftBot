@@ -127,7 +127,12 @@ async function gpt(ctx: BotContext, text: string) {
 }
 
 bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
-  if (ctx.match[2] || ctx.chat.type == "private") gpt(ctx, ctx.match[1]);
+  if (
+    ctx.match[2] ||
+    ctx.chat.type == "private" ||
+    ctx.message?.reply_to_message?.from!.id == bot.botInfo.id
+  )
+    gpt(ctx, ctx.match[1]);
 });
 
 try {
