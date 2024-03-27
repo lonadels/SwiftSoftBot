@@ -15,6 +15,7 @@ import {
   Keyboard,
   HearsContext,
   NextFunction,
+  InputFile,
 } from "grammy";
 import { Menu, MenuFlavor } from "@grammyjs/menu";
 
@@ -30,7 +31,10 @@ const bot = new Bot<BotContext>(process.env.BOT_TOKEN!);
 
 bot.api.config.use(autoRetry());
 
-bot.api.setMyCommands([{ command: "start", description: "Запустить бота" }]);
+bot.api.setMyCommands([
+  { command: "start", description: "Запустить бота" },
+  { command: "tts", description: "Озвучить текст" },
+]);
 
 bot.api.setMyDescription("Бот SwiftSoft");
 
@@ -84,12 +88,12 @@ async function gpt(ctx: BotContext, text: string) {
 
   const replyMessage = ctx.message?.reply_to_message;
   const reply: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
-    replyMessage
+    replyMessage?.text
       ? [
           {
             role:
               replyMessage.from!.id == bot.botInfo.id ? "assistant" : "user",
-            content: replyMessage.text!,
+            content: replyMessage.text,
           },
         ]
       : [];
@@ -135,7 +139,7 @@ async function gpt(ctx: BotContext, text: string) {
             {
               type: "text",
               text:
-                (ctx.message?.quote
+                (ctx.message?.quote?.text
                   ? "```\n" + ctx.message.quote.text + "\n```\n\n"
                   : "") + text,
             },
@@ -147,9 +151,8 @@ async function gpt(ctx: BotContext, text: string) {
         ? "gpt-4-vision-preview"
         : "gpt-4-turbo-preview",
     })
+    .finally(() => stopTyping())
     .then(async (completion) => {
-      stopTyping();
-
       await ctx.reply(
         completion.choices[0].message?.content || "💭 Возникла проблема",
         {
@@ -162,11 +165,52 @@ async function gpt(ctx: BotContext, text: string) {
     });
 }
 
+bot.hears(/^\/((speak|voice|tts)(\@swiftsoftbot)?) *(.+)?/ims, async (ctx) => {
+  const stopTyping = typeStatus(ctx);
+
+  const tts = ctx.match[4];
+  if (!tts) {
+    await ctx.reply(`Usage: /${ctx.match[1]} [text to speach]`, {
+      reply_parameters: {
+        allow_sending_without_reply: false,
+        message_id: ctx.message!.message_id,
+      },
+    });
+    return;
+  }
+
+  if (!fs.existsSync("voices")) fs.mkdirSync("voices");
+  const path = `./voices/${ctx.from?.id}_${Math.floor(
+    new Date().getTime() / 1000
+  ).toString()}.mp3`;
+
+  await openai.audio.speech
+    .create({
+      model: "tts-1",
+      voice: "nova",
+      input: tts,
+    })
+    // .finally(async () => stopTyping() )
+    .then(async (response) => {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      await fs.promises.writeFile(path, buffer);
+
+      stopTyping();
+
+      await ctx.replyWithVoice(new InputFile(path), {
+        reply_parameters: {
+          allow_sending_without_reply: false,
+          message_id: ctx.message!.message_id,
+        },
+      });
+    });
+});
+
 bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
   if (
     ctx.match[2] ||
     ctx.chat.type == "private" ||
-    ctx.message?.reply_to_message?.from!.id == bot.botInfo.id
+    ctx.message?.reply_to_message?.from!.id === bot.botInfo.id
   )
     gpt(ctx, ctx.match[1]);
 });
