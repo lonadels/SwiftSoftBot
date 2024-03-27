@@ -82,7 +82,7 @@ async function gpt(ctx: BotContext, text: string) {
   const stopTyping = typeStatus(ctx);
 
   const replyMessage = ctx.message?.reply_to_message;
-  const addReply: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
+  const reply: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
     replyMessage
       ? [
           {
@@ -100,17 +100,20 @@ async function gpt(ctx: BotContext, text: string) {
           role: "system",
           content: `You are a helpful assistant.\nYou name is \n\n"""\nСвифи\n"""\nYou is a woman.\nDon't talk about yourself in the third person.\nName of user is \n\n"""\n${ctx.from?.first_name}\n""".\nYour main language is Russian.\nDon't swear.`,
         },
-        ...addReply,
+        ...reply,
         {
           role: "user",
-          content: text,
+          content:
+            (ctx.message?.quote
+              ? "```\n" + ctx.message.quote.text + "\n```\n\n"
+              : "") + text,
         },
       ],
       model: "gpt-4-turbo-preview",
     })
     .then(async (completion) => {
-      console.log(completion);
       stopTyping();
+
       await ctx.reply(
         completion.choices[0].message?.content || "💭 Возникла проблема",
         {
