@@ -147,9 +147,7 @@ async function gpt(ctx: BotContext, text: string) {
           ],
         },
       ],
-      model: ctx.message?.photo
-        ? "gpt-4-vision-preview"
-        : "gpt-4-turbo-preview",
+      model: ctx.message?.photo ? "gpt-4-vision-preview" : "gpt-4-0125-preview",
     })
     .finally(() => stopTyping())
     .then(async (completion) => {
