@@ -34,6 +34,7 @@ bot.api.config.use(autoRetry());
 bot.api.setMyCommands([
   { command: "start", description: "Запустить бота" },
   { command: "tts", description: "Озвучить текст" },
+  { command: "img", description: "Сгенерирвать изображение" },
 ]);
 
 bot.api.setMyDescription("Бот SwiftSoft");
@@ -163,9 +164,53 @@ async function gpt(ctx: BotContext, text: string) {
     });
 }
 
-bot.hears(/^\/((speak|voice|tts)(\@swiftsoftbot)?) *(.+)?/ims, async (ctx) => {
-  const stopTyping = typeStatus(ctx);
+bot.hears(
+  /^\/((image|generate|img|gen|dalle)(\@swiftsoftbot)?) *(.+)?/ims,
+  async (ctx) => {
+    const prompt = ctx.match[4];
+    if (!prompt) {
+      await ctx.reply(`Usage: /${ctx.match[1]} [prompt]`, {
+        reply_parameters: {
+          allow_sending_without_reply: false,
+          message_id: ctx.message!.message_id,
+        },
+      });
+      return;
+    }
 
+    const stopTyping = typeStatus(ctx);
+
+    await openai.images
+      .generate({
+        model: "dall-e-3",
+        quality: "hd",
+        response_format: "url",
+        prompt: prompt,
+        n: 1,
+        size: "1024x1024",
+        style: "vivid",
+      })
+      .finally(() => stopTyping())
+      .then(async (response) => {
+        if (response.data[0].url)
+          await ctx.replyWithPhoto(response.data[0].url, {
+            reply_parameters: {
+              allow_sending_without_reply: false,
+              message_id: ctx.message!.message_id,
+            },
+          });
+        else
+          await ctx.reply("Извините, но ничего не вышло :(", {
+            reply_parameters: {
+              allow_sending_without_reply: false,
+              message_id: ctx.message!.message_id,
+            },
+          });
+      });
+  }
+);
+
+bot.hears(/^\/((speak|voice|tts)(\@swiftsoftbot)?) *(.+)?/ims, async (ctx) => {
   const tts = ctx.match[4];
   if (!tts) {
     await ctx.reply(`Usage: /${ctx.match[1]} [text to speach]`, {
@@ -176,6 +221,8 @@ bot.hears(/^\/((speak|voice|tts)(\@swiftsoftbot)?) *(.+)?/ims, async (ctx) => {
     });
     return;
   }
+
+  const stopTyping = typeStatus(ctx);
 
   if (!fs.existsSync("voices")) fs.mkdirSync("voices");
   const path = `./voices/${ctx.from?.id}_${Math.floor(
