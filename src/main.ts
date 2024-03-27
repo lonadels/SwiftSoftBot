@@ -66,15 +66,20 @@ bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
   );
 });
 
-async function gpt(ctx: BotContext, text: string) {
-  let answered: boolean = false;
-
-  new Promise(async (r) => {
+function typeStatus(ctx: BotContext) {
+  let typing: boolean = false;
+  new Promise(async (resolve) => {
     do {
       await ctx.replyWithChatAction("typing");
-      setTimeout(r, 1000);
-    } while (!answered);
+      await new Promise((r) => setTimeout(r, 1000));
+    } while (!typing);
+    resolve(0);
   });
+  return () => (typing = true);
+}
+
+async function gpt(ctx: BotContext, text: string) {
+  const stopTyping = typeStatus(ctx);
 
   openai.chat.completions
     .create({
@@ -88,11 +93,10 @@ async function gpt(ctx: BotContext, text: string) {
           content: text,
         },
       ],
-      model: "gpt-3.5-turbo",
+      model: "gpt-4-turbo-preview",
     })
     .then(async (completion) => {
-      answered = true;
-
+      stopTyping();
       await ctx.reply(
         completion.choices[0].message?.content || "💭 Возникла проблема",
         {
