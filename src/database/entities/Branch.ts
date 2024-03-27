@@ -3,25 +3,25 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import User from "./User";
-import Branch from "./Branch";
+import Message from "./Message";
 
 @Entity()
-export default class Message {
+export default class Branch {
   @PrimaryGeneratedColumn({ type: "bigint" })
   id!: number;
-
-  @Column({ type: "bigint" })
-  telegramId!: number;
 
   @ManyToOne(() => User, (user) => user.messages)
   @JoinColumn()
   user?: User;
 
-  @ManyToOne(() => Branch, (branch) => branch.messages)
-  @JoinColumn()
-  branch?: Branch;
+  @OneToMany(() => Message, (message) => message.branch)
+  messages?: Message[];
+
+  @Column({ type: "bigint" })
+  chatId?: number;
 }

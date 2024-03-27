@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import Message from "./Message";
+import Branch from "./Branch";
 
 @Entity()
 export default class User {
@@ -19,4 +20,7 @@ export default class User {
 
   @OneToMany(() => Message, (message) => message.user)
   messages?: Message[];
+
+  @OneToMany(() => Branch, (branch) => branch.user)
+  branches?: Branch[];
 }
