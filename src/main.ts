@@ -167,6 +167,14 @@ async function gpt(ctx: BotContext, text: string) {
           },
         }
       );
+    })
+    .catch(async () => {
+      await ctx.reply("💭 Возникла проблема", {
+        reply_parameters: {
+          allow_sending_without_reply: false,
+          message_id: ctx.message!.message_id,
+        },
+      });
     });
 }
 
@@ -252,6 +260,14 @@ bot.hears(
                   message_id: ctx.message!.message_id,
                 },
               });
+          })
+          .catch(async () => {
+            await ctx.reply("Извините, но ничего не вышло :(", {
+              reply_parameters: {
+                allow_sending_without_reply: false,
+                message_id: ctx.message!.message_id,
+              },
+            });
           });
       }
     } else if (prompt)
@@ -281,6 +297,14 @@ bot.hears(
                 message_id: ctx.message!.message_id,
               },
             });
+        })
+        .catch(async () => {
+          await ctx.reply("Извините, но ничего не вышло :(", {
+            reply_parameters: {
+              allow_sending_without_reply: false,
+              message_id: ctx.message!.message_id,
+            },
+          });
         });
   }
 );
@@ -318,6 +342,14 @@ bot.hears(/^\/((speak|voice|tts)(\@swiftsoftbot)?) *(.+)?/ims, async (ctx) => {
       stopTyping();
 
       await ctx.replyWithVoice(new InputFile(path), {
+        reply_parameters: {
+          allow_sending_without_reply: false,
+          message_id: ctx.message!.message_id,
+        },
+      });
+    })
+    .catch(async () => {
+      await ctx.reply("Извините, но ничего не вышло :(", {
         reply_parameters: {
           allow_sending_without_reply: false,
           message_id: ctx.message!.message_id,
