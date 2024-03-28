@@ -95,44 +95,64 @@ function typeStatus(ctx: BotContext) {
 async function gpt(ctx: BotContext, text: string) {
   const stopTyping = typeStatus(ctx);
 
-  const replyMessage = ctx.message?.reply_to_message;
-  const reply: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
-    replyMessage?.text
-      ? [
-          {
-            role:
-              replyMessage.from!.id == bot.botInfo.id ? "assistant" : "user",
-            content: replyMessage.text,
-          },
-        ]
-      : [];
+  const reply: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
-  let base64text: string | undefined;
+  if (ctx.message?.reply_to_message?.text)
+    reply.push({
+      role:
+        ctx.message?.reply_to_message.from!.id == bot.botInfo.id
+          ? "assistant"
+          : "user",
+      content: ctx.message?.reply_to_message.text,
+    });
+
+  const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
   if (ctx.message?.photo) {
-    const fileInfo = await ctx.getFile();
+    for (const photo of ctx.message?.photo) {
+      const fileInfo = await ctx.api.getFile(photo.file_id);
 
-    if (fileInfo.file_path) {
-      const url = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN!}/${
-        fileInfo.file_path
-      }`;
+      if (fileInfo.file_path) {
+        const url = `https://api.telegram.org/file/bot${process.env
+          .BOT_TOKEN!}/${fileInfo.file_path}`;
 
-      const response = await fetch(url);
-      const buffer = Buffer.from(await response.arrayBuffer());
-      base64text = buffer.toString("base64");
-    }
-  }
-  const img: OpenAI.Chat.Completions.ChatCompletionContentPart[] = base64text
-    ? [
-        {
+        const response = await fetch(url);
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const base64text = buffer.toString("base64");
+
+        images.push({
           type: "image_url",
           image_url: {
             url: `data:image/jpeg;base64,${base64text}`,
             detail: "auto",
           },
-        },
-      ]
-    : [];
+        });
+      }
+    }
+  }
+
+  if (ctx.message?.reply_to_message?.photo) {
+    for (const photo of ctx.message.reply_to_message.photo) {
+      const fileInfo = await ctx.api.getFile(photo.file_id);
+
+      if (fileInfo.file_path) {
+        const url = `https://api.telegram.org/file/bot${process.env
+          .BOT_TOKEN!}/${fileInfo.file_path}`;
+
+        const response = await fetch(url);
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const base64text = buffer.toString("base64");
+
+        images.push({
+          type: "image_url",
+          image_url: {
+            url: `data:image/jpeg;base64,${base64text}`,
+            detail: "auto",
+          },
+        });
+      }
+    }
+  }
 
   openai.chat.completions
     .create({
@@ -152,7 +172,7 @@ async function gpt(ctx: BotContext, text: string) {
                   ? "```\n" + ctx.message.quote.text + "\n```\n\n"
                   : "") + text,
             },
-            ...img,
+            ...images,
           ],
         },
       ],
