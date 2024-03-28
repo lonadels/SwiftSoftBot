@@ -4,19 +4,11 @@ import { run, sequentialize } from "@grammyjs/runner";
 
 dotenv.config(); // ALWAYS BE FIRST!
 
+import "reflect-metadata";
+
 import { autoRetry } from "@grammyjs/auto-retry";
 import { ParseModeFlavor, hydrateReply } from "@grammyjs/parse-mode";
-import {
-  Context,
-  Bot,
-  BotError,
-  GrammyError,
-  HttpError,
-  Keyboard,
-  HearsContext,
-  NextFunction,
-  InputFile,
-} from "grammy";
+import { Context, Bot, InputFile, InlineKeyboard } from "grammy";
 import { Menu, MenuFlavor } from "@grammyjs/menu";
 
 import { hydrate, HydrateFlavor } from "@grammyjs/hydrate";
@@ -24,12 +16,12 @@ import { hydrate, HydrateFlavor } from "@grammyjs/hydrate";
 export type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
 
 import OpenAI from "openai";
-import { PassThrough, Readable } from "stream";
 import sharp from "sharp";
 import path from "path";
-import { channel } from "process";
-import { buffer } from "stream/consumers";
-import { PhotoSize } from "grammy/types";
+import { useType } from "./hooks/useType";
+import { jokeAnswer } from "./utils/jokeAnswer";
+import DataSource from "./database/DataSource";
+import User from "./database/entities/User";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
 
@@ -54,19 +46,17 @@ bot.command("start", (ctx) => {
   );
 });
 
+bot.use((ctx) => {
+  const userRepo = DataSource.getRepository(User);
+
+  userRepo.findOneByOrFail({ telegramId: ctx.from?.id }).catch(() => {
+    const user = new User();
+    user.telegramId = ctx.from?.id;
+    userRepo.save(user);
+  });
+});
+
 bot.on(":forward_origin", () => false);
-
-function jokeAnswer(match: string | RegExpMatchArray, answer: string = "Пиз") {
-  const isUpper = match[1] === match[1].toUpperCase();
-  const isLower = match[1] === match[1].toLowerCase();
-  const isCamel =
-    match[1][0] === match[1][0].toUpperCase() &&
-    match[1][1] === match[1][1].toLowerCase();
-
-  return `${
-    isUpper ? answer.toUpperCase() : isLower ? answer.toLowerCase() : answer
-  }${isCamel ? match[1].toLowerCase() : match[1]}`;
-}
 
 bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
   ctx.reply(
@@ -80,20 +70,8 @@ bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
   );
 });
 
-function typeStatus(ctx: BotContext) {
-  let typing: boolean = false;
-  new Promise(async (resolve) => {
-    do {
-      await ctx.replyWithChatAction("typing");
-      await new Promise((r) => setTimeout(r, 1000));
-    } while (!typing);
-    resolve(0);
-  });
-  return () => (typing = true);
-}
-
 async function gpt(ctx: BotContext, text: string) {
-  const stopTyping = typeStatus(ctx);
+  const typing = useType(ctx);
 
   const reply: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
@@ -178,7 +156,7 @@ async function gpt(ctx: BotContext, text: string) {
       ],
       model: ctx.message?.photo ? "gpt-4-vision-preview" : "gpt-4-0125-preview",
     })
-    .finally(() => stopTyping())
+    .finally(() => typing.stop())
     .then(async (completion) => {
       await ctx.reply(
         completion.choices[0].message?.content || "Ничего не получилось :(",
@@ -223,7 +201,45 @@ function createReadStreamFromBuffer(
   return fs.createReadStream(tempFilePath); // Создаем ReadStream из файла
 }
 
+bot.on("pre_checkout_query", async (ctx) => {
+  await ctx.answerPreCheckoutQuery(true);
+});
+
+bot.on(":successful_payment", async (ctx) => {
+  await ctx.reply(
+    `Вы успешно пополнили Ваш баланс на ${
+      ctx.message!.successful_payment?.total_amount / 100
+    } ${ctx.message?.successful_payment?.currency}!`
+  );
+});
+
+const subscribeMenu = new Menu("subscribe").text("Оформить подписку", (ctx) => {
+  await ctx.replyWithInvoice(
+    "Test Product",
+    "This is Test Product",
+    "test_product",
+    "381764678:TEST:81396",
+    "RUB",
+    [{ label: "Total", amount: 97.16 * 100 }]
+  );
+});
+
+bot.use(subscribeMenu);
+
 bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
+  const userRepo = DataSource.getRepository(User);
+
+  const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
+
+  if (!user) return;
+
+  if (user.subscribe.expires < new Date() && user.generations > 5) {
+    ctx.reply("<b>Ох! Кажется Ваш лимит исчерпан :(</b>", {
+      parse_mode: "HTML",
+      reply_markup: subscribeMenu,
+    });
+  }
+
   const prompt = ctx.match;
   const replyMessage = ctx.message?.reply_to_message;
 
@@ -237,10 +253,15 @@ bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
     return;
   }
 
-  const stopTyping = typeStatus(ctx);
+  user.generations++;
+  userRepo.save(user);
+
+  return await ctx.reply("OK");
+
+  const typing = useType(ctx);
 
   if (ctx.message?.photo || replyMessage?.photo) {
-    if (!ctx.message?.photo && !replyMessage?.photo) return stopTyping();
+    if (!ctx.message?.photo && !replyMessage?.photo) return typing.stop();
 
     const photo = ctx.message?.photo || replyMessage?.photo;
 
@@ -266,7 +287,7 @@ bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
           size: "1024x1024",
           response_format: "url",
         })
-        .finally(() => stopTyping())
+        .finally(() => typing.stop())
         .then(async (response) => {
           if (response.data[0].url)
             await ctx.replyWithPhoto(response.data[0].url, {
@@ -307,7 +328,7 @@ bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
         size: "1024x1024",
         style: "vivid",
       })
-      .finally(() => stopTyping())
+      .finally(() => typing.stop())
       .then(async (response) => {
         if (response.data[0].url)
           await ctx.replyWithPhoto(response.data[0].url, {
@@ -351,7 +372,7 @@ bot.command(["speak", "voice", "tts"], async (ctx) => {
     return;
   }
 
-  const stopTyping = typeStatus(ctx);
+  const typing = useType(ctx);
 
   if (!fs.existsSync("voices")) fs.mkdirSync("voices");
   const path = `./voices/${ctx.from?.id}_${Math.floor(
@@ -364,12 +385,12 @@ bot.command(["speak", "voice", "tts"], async (ctx) => {
       voice: "nova",
       input: tts,
     })
-    // .finally(async () => stopTyping() )
+    // .finally(async () => typing.stop() )
     .then(async (response) => {
       const buffer = Buffer.from(await response.arrayBuffer());
       await fs.promises.writeFile(path, buffer);
 
-      stopTyping();
+      typing.stop();
 
       await ctx.replyWithVoice(new InputFile(path), {
         reply_parameters: {
@@ -398,8 +419,16 @@ bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
     gpt(ctx, ctx.match[1]);
 });
 
-try {
-  run(bot);
-} catch (err) {
-  console.error(err);
-}
+console.log("Initializing database...");
+DataSource.initialize()
+  .then(() => {
+    console.log("Initializing bot...");
+    try {
+      run(bot);
+    } catch (err) {
+      console.error(err);
+    }
+  })
+  .catch((e) => {
+    console.error(e);
+  });
