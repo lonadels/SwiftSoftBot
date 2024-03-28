@@ -24,6 +24,12 @@ import { hydrate, HydrateFlavor } from "@grammyjs/hydrate";
 export type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
 
 import OpenAI from "openai";
+import { PassThrough, Readable } from "stream";
+import sharp from "sharp";
+import path from "path";
+import { channel } from "process";
+import { buffer } from "stream/consumers";
+import { PhotoSize } from "grammy/types";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
 
@@ -164,11 +170,35 @@ async function gpt(ctx: BotContext, text: string) {
     });
 }
 
+// Функция для конвертации изображения в нужный формат
+async function convertImageFormat(buffer: Buffer): Promise<Buffer> {
+  return await sharp(buffer).png().toBuffer();
+}
+
+// Функция для создания ReadStream из Buffer
+function createReadStreamFromBuffer(
+  buffer: Buffer,
+  fileName: string
+): fs.ReadStream {
+  const tempDir = "./tmp"; // Папка для временных файлов
+  const tempFilePath = path.join(tempDir, fileName); // Путь к временному файлу
+
+  // Проверяем существование папки
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir); // Создаем папку, если она не существует
+  }
+
+  fs.writeFileSync(tempFilePath, buffer); // Записываем данные в файл
+  return fs.createReadStream(tempFilePath); // Создаем ReadStream из файла
+}
+
 bot.hears(
   /^\/((image|generate|img|gen|dalle)(\@swiftsoftbot)?) *(.+)?/ims,
   async (ctx) => {
     const prompt = ctx.match[4];
-    if (!prompt) {
+    const replyMessage = ctx.message?.reply_to_message;
+
+    if (!prompt && !replyMessage?.photo && !ctx.message?.photo) {
       await ctx.reply(`Usage: /${ctx.match[1]} [prompt]`, {
         reply_parameters: {
           allow_sending_without_reply: false,
@@ -180,33 +210,78 @@ bot.hears(
 
     const stopTyping = typeStatus(ctx);
 
-    await openai.images
-      .generate({
-        model: "dall-e-3",
-        quality: "hd",
-        response_format: "url",
-        prompt: prompt,
-        n: 1,
-        size: "1024x1024",
-        style: "vivid",
-      })
-      .finally(() => stopTyping())
-      .then(async (response) => {
-        if (response.data[0].url)
-          await ctx.replyWithPhoto(response.data[0].url, {
-            reply_parameters: {
-              allow_sending_without_reply: false,
-              message_id: ctx.message!.message_id,
-            },
+    if (ctx.message?.photo || replyMessage?.photo) {
+      if (!ctx.message?.photo && !replyMessage?.photo) return stopTyping();
+
+      const photo = ctx.message?.photo || replyMessage?.photo;
+
+      const fileInfo = await ctx.api.getFile(photo![0].file_id);
+
+      if (fileInfo.file_path) {
+        const url = `https://api.telegram.org/file/bot${process.env
+          .BOT_TOKEN!}/${fileInfo.file_path}`;
+
+        const response = await fetch(url);
+        const buffer = Buffer.from(await response.arrayBuffer());
+
+        await openai.images
+          .createVariation({
+            image: createReadStreamFromBuffer(
+              await convertImageFormat(buffer),
+              `${ctx.from?.id}_${Math.floor(
+                new Date().getTime() / 1000
+              ).toString()}.png`
+            ),
+            model: "dall-e-2",
+            size: "1024x1024",
+            response_format: "url",
+          })
+          .finally(() => stopTyping())
+          .then(async (response) => {
+            if (response.data[0].url)
+              await ctx.replyWithPhoto(response.data[0].url, {
+                reply_parameters: {
+                  allow_sending_without_reply: false,
+                  message_id: ctx.message!.message_id,
+                },
+              });
+            else
+              await ctx.reply("Извините, но ничего не вышло :(", {
+                reply_parameters: {
+                  allow_sending_without_reply: false,
+                  message_id: ctx.message!.message_id,
+                },
+              });
           });
-        else
-          await ctx.reply("Извините, но ничего не вышло :(", {
-            reply_parameters: {
-              allow_sending_without_reply: false,
-              message_id: ctx.message!.message_id,
-            },
-          });
-      });
+      }
+    } else if (prompt)
+      await openai.images
+        .generate({
+          model: "dall-e-3",
+          quality: "hd",
+          response_format: "url",
+          prompt: prompt,
+          n: 1,
+          size: "1024x1024",
+          style: "vivid",
+        })
+        .finally(() => stopTyping())
+        .then(async (response) => {
+          if (response.data[0].url)
+            await ctx.replyWithPhoto(response.data[0].url, {
+              reply_parameters: {
+                allow_sending_without_reply: false,
+                message_id: ctx.message!.message_id,
+              },
+            });
+          else
+            await ctx.reply("Извините, но ничего не вышло :(", {
+              reply_parameters: {
+                allow_sending_without_reply: false,
+                message_id: ctx.message!.message_id,
+              },
+            });
+        });
   }
 );
 
