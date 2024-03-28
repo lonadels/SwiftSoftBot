@@ -161,7 +161,7 @@ async function gpt(ctx: BotContext, text: string) {
     .finally(() => stopTyping())
     .then(async (completion) => {
       await ctx.reply(
-        completion.choices[0].message?.content || "💭 Возникла проблема",
+        completion.choices[0].message?.content || "Ничего не получилось :(",
         {
           reply_parameters: {
             allow_sending_without_reply: false,
@@ -170,8 +170,9 @@ async function gpt(ctx: BotContext, text: string) {
         }
       );
     })
-    .catch(async () => {
-      await ctx.reply("💭 Возникла проблема", {
+    .catch(async (e) => {
+      await ctx.reply("⚠️ Возникла проблема\n\n```" + e.toString() + "```", {
+        parse_mode: "MarkdownV2",
         reply_parameters: {
           allow_sending_without_reply: false,
           message_id: ctx.message!.message_id,
@@ -262,13 +263,17 @@ bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
               },
             });
         })
-        .catch(async () => {
-          await ctx.reply("Извините, но ничего не вышло :(", {
-            reply_parameters: {
-              allow_sending_without_reply: false,
-              message_id: ctx.message!.message_id,
-            },
-          });
+        .catch(async (e) => {
+          await ctx.reply(
+            "⚠️ Возникла проблема\n\n```" + e.toString() + "```",
+            {
+              parse_mode: "MarkdownV2",
+              reply_parameters: {
+                allow_sending_without_reply: false,
+                message_id: ctx.message!.message_id,
+              },
+            }
+          );
         });
     }
   } else if (prompt)
@@ -302,16 +307,14 @@ bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
             }
           );
       })
-      .catch(async () => {
-        await ctx.reply(
-          "Извините, но ничего не вышло, Вы можете попробовать ещё раз.",
-          {
-            reply_parameters: {
-              allow_sending_without_reply: false,
-              message_id: ctx.message!.message_id,
-            },
-          }
-        );
+      .catch(async (e) => {
+        await ctx.reply("⚠️ Возникла проблема\n\n```" + e.toString() + "```", {
+          parse_mode: "MarkdownV2",
+          reply_parameters: {
+            allow_sending_without_reply: false,
+            message_id: ctx.message!.message_id,
+          },
+        });
       });
 });
 
@@ -355,8 +358,9 @@ bot.command(["speak", "voice", "tts"], async (ctx) => {
         },
       });
     })
-    .catch(async () => {
-      await ctx.reply("Извините, но ничего не вышло :(", {
+    .catch(async (e) => {
+      await ctx.reply("⚠️ Возникла проблема\n\n```" + e.toString() + "```", {
+        parse_mode: "MarkdownV2",
         reply_parameters: {
           allow_sending_without_reply: false,
           message_id: ctx.message!.message_id,
