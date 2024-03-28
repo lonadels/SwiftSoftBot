@@ -54,6 +54,8 @@ bot.command("start", (ctx) => {
   );
 });
 
+bot.on(":forward_origin", () => false);
+
 function jokeAnswer(match: string | RegExpMatchArray, answer: string = "Пиз") {
   const isUpper = match[1] === match[1].toUpperCase();
   const isLower = match[1] === match[1].toLowerCase();
@@ -200,86 +202,48 @@ function createReadStreamFromBuffer(
   return fs.createReadStream(tempFilePath); // Создаем ReadStream из файла
 }
 
-bot.hears(
-  /^\/((image|generate|img|gen|dalle)(\@swiftsoftbot)?) *(.+)?/ims,
-  async (ctx) => {
-    const prompt = ctx.match[4];
-    const replyMessage = ctx.message?.reply_to_message;
+bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
+  const prompt = ctx.match;
+  const replyMessage = ctx.message?.reply_to_message;
 
-    if (!prompt && !replyMessage?.photo && !ctx.message?.photo) {
-      await ctx.reply(`Usage: /${ctx.match[1]} [prompt]`, {
-        reply_parameters: {
-          allow_sending_without_reply: false,
-          message_id: ctx.message!.message_id,
-        },
-      });
-      return;
-    }
+  if (!prompt && !replyMessage?.photo && !ctx.message?.photo) {
+    await ctx.reply(`Usage: /img [prompt]`, {
+      reply_parameters: {
+        allow_sending_without_reply: false,
+        message_id: ctx.message!.message_id,
+      },
+    });
+    return;
+  }
 
-    const stopTyping = typeStatus(ctx);
+  const stopTyping = typeStatus(ctx);
 
-    if (ctx.message?.photo || replyMessage?.photo) {
-      if (!ctx.message?.photo && !replyMessage?.photo) return stopTyping();
+  if (ctx.message?.photo || replyMessage?.photo) {
+    if (!ctx.message?.photo && !replyMessage?.photo) return stopTyping();
 
-      const photo = ctx.message?.photo || replyMessage?.photo;
+    const photo = ctx.message?.photo || replyMessage?.photo;
 
-      const fileInfo = await ctx.api.getFile(photo![0].file_id);
+    const fileInfo = await ctx.api.getFile(photo![0].file_id);
 
-      if (fileInfo.file_path) {
-        const url = `https://api.telegram.org/file/bot${process.env
-          .BOT_TOKEN!}/${fileInfo.file_path}`;
+    if (fileInfo.file_path) {
+      const url = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN!}/${
+        fileInfo.file_path
+      }`;
 
-        const response = await fetch(url);
-        const buffer = Buffer.from(await response.arrayBuffer());
+      const response = await fetch(url);
+      const buffer = Buffer.from(await response.arrayBuffer());
 
-        await openai.images
-          .createVariation({
-            image: createReadStreamFromBuffer(
-              await convertImageFormat(buffer),
-              `${ctx.from?.id}_${Math.floor(
-                new Date().getTime() / 1000
-              ).toString()}.png`
-            ),
-            model: "dall-e-2",
-            size: "1024x1024",
-            response_format: "url",
-          })
-          .finally(() => stopTyping())
-          .then(async (response) => {
-            if (response.data[0].url)
-              await ctx.replyWithPhoto(response.data[0].url, {
-                reply_parameters: {
-                  allow_sending_without_reply: false,
-                  message_id: ctx.message!.message_id,
-                },
-              });
-            else
-              await ctx.reply("Извините, но ничего не вышло :(", {
-                reply_parameters: {
-                  allow_sending_without_reply: false,
-                  message_id: ctx.message!.message_id,
-                },
-              });
-          })
-          .catch(async () => {
-            await ctx.reply("Извините, но ничего не вышло :(", {
-              reply_parameters: {
-                allow_sending_without_reply: false,
-                message_id: ctx.message!.message_id,
-              },
-            });
-          });
-      }
-    } else if (prompt)
       await openai.images
-        .generate({
-          model: "dall-e-3",
-          quality: "hd",
-          response_format: "url",
-          prompt: prompt,
-          n: 1,
+        .createVariation({
+          image: createReadStreamFromBuffer(
+            await convertImageFormat(buffer),
+            `${ctx.from?.id}_${Math.floor(
+              new Date().getTime() / 1000
+            ).toString()}.png`
+          ),
+          model: "dall-e-2",
           size: "1024x1024",
-          style: "vivid",
+          response_format: "url",
         })
         .finally(() => stopTyping())
         .then(async (response) => {
@@ -306,13 +270,56 @@ bot.hears(
             },
           });
         });
-  }
-);
+    }
+  } else if (prompt)
+    await openai.images
+      .generate({
+        model: "dall-e-3",
+        quality: "hd",
+        response_format: "url",
+        prompt: prompt,
+        n: 1,
+        size: "1024x1024",
+        style: "vivid",
+      })
+      .finally(() => stopTyping())
+      .then(async (response) => {
+        if (response.data[0].url)
+          await ctx.replyWithPhoto(response.data[0].url, {
+            reply_parameters: {
+              allow_sending_without_reply: false,
+              message_id: ctx.message!.message_id,
+            },
+          });
+        else
+          await ctx.reply(
+            "Извините, но ничего не вышло, Вы можете попробовать ещё раз.",
+            {
+              reply_parameters: {
+                allow_sending_without_reply: false,
+                message_id: ctx.message!.message_id,
+              },
+            }
+          );
+      })
+      .catch(async () => {
+        await ctx.reply(
+          "Извините, но ничего не вышло, Вы можете попробовать ещё раз.",
+          {
+            reply_parameters: {
+              allow_sending_without_reply: false,
+              message_id: ctx.message!.message_id,
+            },
+          }
+        );
+      });
+});
 
-bot.hears(/^\/((speak|voice|tts)(\@swiftsoftbot)?) *(.+)?/ims, async (ctx) => {
-  const tts = ctx.match[4];
+bot.command(["speak", "voice", "tts"], async (ctx) => {
+  const tts = ctx.match;
+
   if (!tts) {
-    await ctx.reply(`Usage: /${ctx.match[1]} [text to speach]`, {
+    await ctx.reply(`Usage: /tts [text to speach]`, {
       reply_parameters: {
         allow_sending_without_reply: false,
         message_id: ctx.message!.message_id,
