@@ -1,9 +1,9 @@
 import { Column } from "typeorm";
 
 export class Subscribe {
-  @Column({ default: 0 })
-  starts!: Date;
+  @Column({ nullable: true })
+  starts?: Date;
 
-  @Column({ default: 0 })
-  expires!: Date;
+  @Column({ nullable: true })
+  expires?: Date;
 }

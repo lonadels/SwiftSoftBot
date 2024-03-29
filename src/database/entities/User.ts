@@ -21,7 +21,7 @@ export default class User {
   balance!: number;
 
   @Column(() => Subscribe)
-  subscribe?: Subscribe;
+  subscribe!: Subscribe;
 
   @Column({ default: 0 })
   generations!: number;

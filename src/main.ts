@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import * as dotenv from "dotenv";
-import { run, sequentialize } from "@grammyjs/runner";
 
 dotenv.config(); // ALWAYS BE FIRST!
 
@@ -205,7 +204,7 @@ bot.on("pre_checkout_query", async (ctx) => {
   await ctx.answerPreCheckoutQuery(true);
 });
 
-bot.on(":successful_payment", async (ctx) => {
+bot.on("message:successful_payment", async (ctx) => {
   await ctx.reply(
     `Вы успешно пополнили Ваш баланс на ${
       ctx.message!.successful_payment?.total_amount / 100
@@ -213,17 +212,19 @@ bot.on(":successful_payment", async (ctx) => {
   );
 });
 
-const subscribeMenu = new Menu("subscribe").text("Оформить подписку", (ctx) => {
-  await ctx.replyWithInvoice(
-    "Test Product",
-    "This is Test Product",
-    "test_product",
-    "381764678:TEST:81396",
-    "RUB",
-    [{ label: "Total", amount: 97.16 * 100 }]
-  );
-});
-
+const subscribeMenu = new Menu("subscribe").text(
+  "Оформить подписку",
+  async (ctx) => {
+    await ctx.replyWithInvoice(
+      "Test Product",
+      "This is Test Product",
+      "test_product",
+      "381764678:TEST:81396",
+      "RUB",
+      [{ label: "Total", amount: 97.16 * 100 }]
+    );
+  }
+);
 bot.use(subscribeMenu);
 
 bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
@@ -233,7 +234,10 @@ bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
 
   if (!user) return;
 
-  if (user.subscribe.expires < new Date() && user.generations > 5) {
+  if (
+    (!user.subscribe?.expires || user.subscribe!.expires < new Date()) &&
+    user.generations > 5
+  ) {
     ctx.reply("<b>Ох! Кажется Ваш лимит исчерпан :(</b>", {
       parse_mode: "HTML",
       reply_markup: subscribeMenu,
@@ -420,15 +424,7 @@ bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
 });
 
 console.log("Initializing database...");
-DataSource.initialize()
-  .then(() => {
-    console.log("Initializing bot...");
-    try {
-      run(bot);
-    } catch (err) {
-      console.error(err);
-    }
-  })
-  .catch((e) => {
-    console.error(e);
-  });
+DataSource.initialize().then(async () => {
+  console.log("Initializing bot...");
+  bot.start();
+});
