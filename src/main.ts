@@ -45,7 +45,7 @@ bot.command("start", (ctx) => {
   );
 });
 
-bot.use((ctx) => {
+bot.use(async (ctx, next) => {
   const userRepo = DataSource.getRepository(User);
 
   userRepo.findOneByOrFail({ telegramId: ctx.from?.id }).catch(() => {
@@ -53,9 +53,11 @@ bot.use((ctx) => {
     user.telegramId = ctx.from?.id;
     userRepo.save(user);
   });
+
+  next();
 });
 
-bot.on(":forward_origin", () => false);
+bot.on("msg:forward_origin", () => false);
 
 bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
   ctx.reply(
@@ -136,7 +138,7 @@ async function gpt(ctx: BotContext, text: string) {
       messages: [
         {
           role: "system",
-          content: `You are a helpful assistant.\nYou name is \n\n"""\nСвифи\n"""\nYou is a woman.\nDon't talk about yourself in the third person.\nName of user is \n\n"""\n${ctx.from?.first_name}\n""".\nYour main language is Russian.\nDon't swear.\nDon't use markdown formatting.`,
+          content: `You are a helpful assistant.\nYou name is \n\n"""\nСвифи\n"""\nYou is a woman.\nDon't talk about yourself in the third person.\nName of user is \n\n"""\n${ctx.from?.first_name}\n""".\nYour main language is Russian.\nDon't use markdown formatting.`,
         },
         ...reply,
         {
@@ -204,24 +206,34 @@ bot.on("pre_checkout_query", async (ctx) => {
   await ctx.answerPreCheckoutQuery(true);
 });
 
-bot.on("message:successful_payment", async (ctx) => {
-  await ctx.reply(
-    `Вы успешно пополнили Ваш баланс на ${
-      ctx.message!.successful_payment?.total_amount / 100
-    } ${ctx.message?.successful_payment?.currency}!`
-  );
+bot.on("msg:successful_payment", async (ctx) => {
+  const userRepo = DataSource.getRepository(User);
+
+  const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
+
+  if (!user) return;
+
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+
+  user.subscribe.expires = date;
+  user.subscribe.starts = new Date();
+
+  await userRepo.save(user);
+
+  await ctx.reply(`Вы успешно активировали подписку на 30 дней!`);
 });
 
 const subscribeMenu = new Menu("subscribe").text(
   "Оформить подписку",
   async (ctx) => {
     await ctx.replyWithInvoice(
-      "Test Product",
-      "This is Test Product",
-      "test_product",
-      "381764678:TEST:81396",
+      "Подписка",
+      "Доступ к расширенным генерациям на 30 дней",
+      "subscription",
+      process.env.PAY_TOKEN!,
       "RUB",
-      [{ label: "Total", amount: 97.16 * 100 }]
+      [{ label: "Total", amount: 199 * 100 }]
     );
   }
 );
@@ -233,16 +245,6 @@ bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
   const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
 
   if (!user) return;
-
-  if (
-    (!user.subscribe?.expires || user.subscribe!.expires < new Date()) &&
-    user.generations > 5
-  ) {
-    ctx.reply("<b>Ох! Кажется Ваш лимит исчерпан :(</b>", {
-      parse_mode: "HTML",
-      reply_markup: subscribeMenu,
-    });
-  }
 
   const prompt = ctx.match;
   const replyMessage = ctx.message?.reply_to_message;
@@ -257,10 +259,19 @@ bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
     return;
   }
 
-  user.generations++;
-  userRepo.save(user);
-
-  return await ctx.reply("OK");
+  if (
+    (!user.subscribe?.expires || user.subscribe!.expires < new Date()) &&
+    user.generations > 5
+  ) {
+    await ctx.reply(
+      "<b>Ох! Кажется Ваш лимит исчерпан :(</b>\nПолучите доступ к расширенным генерациям с подпиской за 199 ₽/мес.",
+      {
+        parse_mode: "HTML",
+        reply_markup: subscribeMenu,
+      }
+    );
+    return;
+  }
 
   const typing = useType(ctx);
 
@@ -293,14 +304,16 @@ bot.command(["image", "generate", "img", "gen", "dalle"], async (ctx) => {
         })
         .finally(() => typing.stop())
         .then(async (response) => {
-          if (response.data[0].url)
+          if (response.data[0].url) {
             await ctx.replyWithPhoto(response.data[0].url, {
               reply_parameters: {
                 allow_sending_without_reply: false,
                 message_id: ctx.message!.message_id,
               },
             });
-          else
+            user.generations++;
+            await userRepo.save(user);
+          } else
             await ctx.reply("Извините, но ничего не вышло :(", {
               reply_parameters: {
                 allow_sending_without_reply: false,
@@ -426,5 +439,5 @@ bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
 console.log("Initializing database...");
 DataSource.initialize().then(async () => {
   console.log("Initializing bot...");
-  bot.start();
+  bot.start().catch((e) => console.error(e));
 });

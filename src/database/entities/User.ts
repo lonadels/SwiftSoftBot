@@ -17,9 +17,6 @@ export default class User {
   @Column({ type: "bigint", nullable: true, unique: true })
   telegramId?: number;
 
-  @Column({ type: "bigint", default: 0 })
-  balance!: number;
-
   @Column(() => Subscribe)
   subscribe!: Subscribe;
 
