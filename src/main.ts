@@ -439,5 +439,9 @@ bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
 console.log("Initializing database...");
 DataSource.initialize().then(async () => {
   console.log("Initializing bot...");
-  bot.start().catch((e) => console.error(e));
+  try {
+    bot.start();
+  } catch (e) {
+    console.error(e);
+  }
 });
