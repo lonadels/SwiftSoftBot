@@ -29,7 +29,7 @@ export function initBot() {
   bot.use(hydrateReply);
 
   // ignore forwarded messages
-  bot.on("msg:forward_origin");
+  bot.on("msg:forward_origin", () => {});
 
   bot.use(checkUserExistsOrCreate);
 
