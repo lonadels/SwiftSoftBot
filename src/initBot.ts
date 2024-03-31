@@ -15,12 +15,6 @@ type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
 export function initBot() {
   const bot = new Bot<BotContext>(process.env.BOT_TOKEN!);
 
-  bot.api.setMyCommands([
-    { command: "start", description: "Запустить бота" },
-    { command: "tts", description: "Озвучить текст" },
-    { command: "img", description: "Сгенерирвать изображение" },
-  ]);
-
   bot.api.setMyDescription("Бот SwiftSoft");
 
   bot.api.config.use(autoRetry());
@@ -33,11 +27,19 @@ export function initBot() {
 
   bot.use(checkUserExistsOrCreate);
 
-  new GreetingModule(bot);
-  new JokeModule(bot);
-  new GPTModule(bot, {
-    subscriptionModule: new SubscriptionModule(bot),
+  const greeting = new GreetingModule(bot);
+  const joke = new JokeModule(bot);
+  const sub = new SubscriptionModule(bot);
+  const gpt = new GPTModule(bot, {
+    subscriptionModule: sub,
   });
+
+  bot.api.setMyCommands([
+    ...greeting.commands,
+    ...joke.commands,
+    ...sub.commands,
+    ...gpt.commands,
+  ]);
 
   bot.catch(errorHandler);
 

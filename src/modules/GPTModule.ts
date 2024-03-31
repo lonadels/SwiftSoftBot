@@ -10,10 +10,16 @@ import User from "../database/entities/User";
 import { convertImageFormat } from "../utils/convertImageFormat";
 import { createReadStreamFromBuffer } from "../utils/createReadStreamFromBuffer";
 import { SubscriptionModule } from "./SubscriptionModule";
+import { BotCommand } from "grammy/types";
 
 export class GPTModule<T extends Context = Context> extends Module<T> {
   private readonly openai: OpenAI;
   private readonly subscriptionModule?: SubscriptionModule<T>;
+
+  public readonly commands: BotCommand[] = [
+    { command: "tts", description: "Озвучить текст" },
+    { command: "img", description: "Сгенерировать изображение" },
+  ];
 
   constructor(
     bot: Bot<T>,
@@ -28,9 +34,9 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
   initModule(): void {
     this.image = this.image.bind(this);
-    this.voice = this.voice.bind(this);
-
     this.bot.command(["image", "generate", "img", "gen", "dalle"], this.image);
+
+    this.voice = this.voice.bind(this);
     this.bot.command(["speak", "voice", "tts"], this.voice);
 
     this.bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
@@ -222,21 +228,11 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     if (!checkHasArgs(ctx) && !replyMessage?.photo && !ctx.message?.photo)
       return;
 
-    if (this?.subscriptionModule) {
-      if (
-        (!user.subscribe?.expires || user.subscribe!.expires < new Date()) &&
-        user.generations > this.subscriptionModule.maxLimit
-      ) {
-        await ctx.reply(
-          "<b>Ох! Кажется Ваш лимит исчерпан :(</b>\nПолучите доступ к расширенным генерациям с подпиской за 199 ₽/мес.",
-          {
-            parse_mode: "HTML",
-            reply_markup: this.subscriptionModule.subscribeMenu,
-          }
-        );
-        return;
-      }
-    }
+    if (
+      this?.subscriptionModule &&
+      (await this.subscriptionModule.isLimitExceeded(ctx))
+    )
+      return;
 
     const typing = useType(ctx);
 

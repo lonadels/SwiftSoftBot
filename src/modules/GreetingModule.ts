@@ -1,8 +1,14 @@
 import { Bot, CommandContext, Context } from "grammy";
 import { Module } from "./Module";
+import { BotCommand } from "grammy/types";
 
 export class GreetingModule<T extends Context> extends Module<T> {
+  public readonly commands: BotCommand[] = [
+    { command: "start", description: "Запустить бота" },
+  ];
+
   initModule() {
+    this.greet = this.greet.bind(this);
     this.bot.command("start", this.greet);
   }
 
