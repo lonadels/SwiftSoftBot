@@ -1,3 +1,4 @@
+import { Context } from "grammy";
 import { BotContext } from "../main";
 
 class TypeStatus {
@@ -10,7 +11,7 @@ class TypeStatus {
   }
 }
 
-export function useType(ctx: BotContext): TypeStatus {
+export function useType(ctx: Context): TypeStatus {
   const typeStatus = new TypeStatus();
 
   new Promise(async (resolve) => {
