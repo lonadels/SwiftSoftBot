@@ -117,7 +117,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
             type: "image_url",
             image_url: {
               url: `data:image/jpeg;base64,${base64text}`,
-              detail: "auto",
+              detail: "high",
             },
           });
         }
