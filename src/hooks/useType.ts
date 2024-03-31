@@ -17,7 +17,7 @@ export function useType(ctx: Context): TypeStatus {
     do {
       await ctx.replyWithChatAction("typing");
       await new Promise((r) => setTimeout(r, 1000));
-    } while (typeStatus);
+    } while (typeStatus.isTyping);
     resolve(0);
   });
 

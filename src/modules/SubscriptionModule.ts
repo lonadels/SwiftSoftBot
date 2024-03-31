@@ -5,7 +5,7 @@ import { Menu } from "@grammyjs/menu";
 export class SubscriptionModule<T extends Context = Context> extends Module<T> {
   public readonly maxLimit: number = 5;
 
-  public readonly subscribeMenu: Menu = new Menu("subscribe").text(
+  public readonly subscribeMenu: Menu<T> = new Menu<T>("subscribe").text(
     "Оформить подписку",
     async (ctx) => {
       await ctx.replyWithInvoice(
