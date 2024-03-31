@@ -68,7 +68,7 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
       const daysLeft = daysDiff(new Date(), user.subscribe.expires!);
 
       const [day, month, year] = [
-        user.subscribe.expires!.getDay(),
+        user.subscribe.expires!.getDate(),
         Month[user.subscribe.expires!.getMonth()],
         user.subscribe.expires!.getFullYear(),
       ];
@@ -115,8 +115,6 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
     this.bot.command("subscribe", this.subscribe);
 
     this.bot.on("pre_checkout_query", async (ctx) => {
-      console.log(await this.isActive(ctx));
-
       if (!(await this.isActive(ctx))) ctx.answerPreCheckoutQuery(true);
       else ctx.answerPreCheckoutQuery(false);
     });
