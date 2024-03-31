@@ -54,12 +54,15 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
         voices.forEach((voice, i) => {
           range.text(
-            `${user.voice == voice ? "✅ " : ""}${voice}`,
+            () => `${user.voice == voice ? "✅ " : ""}${voice}`,
             async (ctx) => {
               user.voice = voice;
-              userRepo.save(user);
+              await userRepo.save(user);
 
-              ctx.answerCallbackQuery({ text: `Голос "${voice}" установлен` });
+              await ctx.answerCallbackQuery({
+                text: `Голос "${voice}" установлен`,
+              });
+
               ctx.menu.update();
             }
           );
