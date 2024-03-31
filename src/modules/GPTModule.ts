@@ -189,7 +189,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
     await this.openai.audio.speech
       .create({
-        model: "tts-1",
+        model: "tts-1-hd",
         voice: "nova",
         input: ctx.match,
       })
