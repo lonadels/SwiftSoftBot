@@ -167,12 +167,13 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       });
   }
 
-  public async voice(ctx: CommandContext<T>) {
+  private async voice(ctx: CommandContext<T>) {
     if (!checkHasArgs(ctx)) return;
 
     const typing = useType(ctx);
 
     if (!fs.existsSync("voices")) fs.mkdirSync("voices");
+
     const path = `./voices/${ctx.from?.id}_${Math.floor(
       new Date().getTime() / 1000
     ).toString()}.mp3`;
@@ -208,7 +209,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       });
   }
 
-  public async image(ctx: CommandContext<T>) {
+  private async image(ctx: CommandContext<T>) {
     const userRepo = DataSource.getRepository(User);
 
     const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
