@@ -26,6 +26,35 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
       (ctx) => this.sendInvoice(ctx)
     );
     this.bot.use(this.subscribeMenu);
+
+    this.bot.command("subscribe", (ctx) => this.subscribe(ctx));
+
+    this.bot.on("pre_checkout_query", async (ctx) => {
+      if (!(await this.isActive(ctx))) ctx.answerPreCheckoutQuery(true);
+      else ctx.answerPreCheckoutQuery(false);
+    });
+
+    this.bot.on("message:successful_payment", async (ctx) => {
+      const userRepo = DataSource.getRepository(User);
+
+      const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
+
+      if (!user) return;
+
+      const expiresDate = new Date();
+      expiresDate.setDate(expiresDate.getDate() + 30);
+
+      user.subscribe.expires = expiresDate;
+      user.subscribe.starts = new Date();
+
+      await userRepo.save(user);
+
+      await ctx.reply(
+        `<b>✨ Вы успешно активировали подписку на 30 дней!</b>\n` +
+          `Теперь вы можете пользоваться расширенными генерациями без ограничений.`,
+        { parse_mode: "HTML" }
+      );
+    });
   }
 
   async sendInvoice(ctx: Context) {
@@ -107,38 +136,5 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
     if (user.generations > this.maxLimit) this.onLimitExceeded(ctx);
 
     return true;
-  }
-
-  initModule() {
-    this.subscribe = this.subscribe.bind(this);
-
-    this.bot.command("subscribe", this.subscribe);
-
-    this.bot.on("pre_checkout_query", async (ctx) => {
-      if (!(await this.isActive(ctx))) ctx.answerPreCheckoutQuery(true);
-      else ctx.answerPreCheckoutQuery(false);
-    });
-
-    this.bot.on("message:successful_payment", async (ctx) => {
-      const userRepo = DataSource.getRepository(User);
-
-      const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
-
-      if (!user) return;
-
-      const expiresDate = new Date();
-      expiresDate.setDate(expiresDate.getDate() + 30);
-
-      user.subscribe.expires = expiresDate;
-      user.subscribe.starts = new Date();
-
-      await userRepo.save(user);
-
-      await ctx.reply(
-        `<b>✨ Вы успешно активировали подписку на 30 дней!</b>\n` +
-          `Теперь вы можете пользоваться расширенными генерациями без ограничений.`,
-        { parse_mode: "HTML" }
-      );
-    });
   }
 }

@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Subscribe } from "./Subscribe";
+import { Voices } from "../Voices";
 
 @Entity()
 export default class User {
@@ -22,4 +23,10 @@ export default class User {
 
   @Column({ default: 0 })
   generations!: number;
+
+  @Column({
+    enum: ["alloy", "echo", "fable", "nova", "onyx", "shimmer"],
+    default: "nova",
+  })
+  voice!: Voices;
 }

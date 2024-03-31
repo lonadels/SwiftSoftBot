@@ -7,9 +7,9 @@ export class GreetingModule<T extends Context> extends Module<T> {
     { command: "start", description: "Запустить бота" },
   ];
 
-  initModule() {
-    this.greet = this.greet.bind(this);
-    this.bot.command("start", this.greet);
+  constructor(bot: Bot<T>) {
+    super(bot);
+    this.bot.command("start", (ctx) => this.greet(ctx));
   }
 
   private greet(ctx: CommandContext<T>) {

@@ -10,6 +10,8 @@ import { convertImageFormat } from "../utils/convertImageFormat";
 import { createReadStreamFromBuffer } from "../utils/createReadStreamFromBuffer";
 import { SubscriptionModule } from "./SubscriptionModule";
 import { BotCommand } from "grammy/types";
+import { Menu } from "@grammyjs/menu";
+import { Voices } from "../database/Voices";
 
 export class GPTModule<T extends Context = Context> extends Module<T> {
   private readonly openai: OpenAI;
@@ -18,25 +20,57 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
   public readonly commands: BotCommand[] = [
     { command: "tts", description: "Озвучить текст" },
     { command: "img", description: "Сгенерировать изображение" },
+    { command: "tts_voice", description: "Выбрать голос" },
   ];
+
+  private voiceMenu!: Menu;
 
   constructor(
     bot: Bot<T>,
     options?: { subscriptionModule?: SubscriptionModule<T> }
   ) {
     super(bot);
+
     this.openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
 
     if (options?.subscriptionModule)
       this.subscriptionModule = options.subscriptionModule;
-  }
 
-  initModule(): void {
-    this.image = this.image.bind(this);
-    this.bot.command(["image", "generate", "img", "gen", "dalle"], this.image);
+    this.voiceMenu = new Menu("voice").dynamic(async (ctx, range) => {
+      const userRepo = DataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
 
-    this.voice = this.voice.bind(this);
-    this.bot.command(["speak", "voice", "tts"], this.voice);
+      if (!user) return;
+
+      const voices: Voices[] = [
+        "alloy",
+        "echo",
+        "fable",
+        "nova",
+        "onyx",
+        "shimmer",
+      ];
+
+      voices.forEach((voice, i) => {
+        range.text(
+          `${user.voice == voice ? "✅ " : ""}${voice}`,
+          async (ctx) => {
+            user.voice = voice;
+            userRepo.save(user);
+
+            ctx.menu.update();
+          }
+        );
+        if ((i + 1) % 3 === 0) range.row();
+      });
+    });
+    this.bot.use(this.voiceMenu);
+
+    this.bot.command(["image", "generate", "img", "gen", "dalle"], (ctx) =>
+      this.image(ctx)
+    );
+    this.bot.command("tts_voice", (ctx) => this.setVoice(ctx));
+    this.bot.command(["speak", "voice", "tts"], (ctx) => this.voice(ctx));
 
     this.bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
       if (
@@ -47,6 +81,8 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         this.reply(ctx, ctx.match[1]);
     });
   }
+
+  initModule(): void {}
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private onError(ctx: Context): (e: any) => Promise<void> {
@@ -176,7 +212,16 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       });
   }
 
+  private async setVoice(ctx: Context) {
+    await ctx.reply("Выберите голос:", { reply_markup: this.voiceMenu });
+  }
+
   private async voice(ctx: CommandContext<T>) {
+    const userRepo = DataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
+
+    if (!user) return;
+
     if (!checkHasArgs(ctx)) return;
 
     const typing = useType(ctx);
@@ -190,7 +235,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     await this.openai.audio.speech
       .create({
         model: "tts-1-hd",
-        voice: "nova",
+        voice: user.voice,
         input: ctx.match,
       })
       // .finally(async () => typing.stop() )
