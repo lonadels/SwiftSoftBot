@@ -12,7 +12,7 @@ import { createReadStreamFromBuffer } from "../utils/createReadStreamFromBuffer"
 import { SubscriptionModule } from "./SubscriptionModule";
 
 export class GPTModule<T extends Context = Context> extends Module<T> {
-  private openai: OpenAI;
+  private readonly openai: OpenAI;
   private readonly subscriptionModule?: SubscriptionModule<T>;
 
   constructor(
@@ -20,14 +20,16 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     options?: { subscriptionModule?: SubscriptionModule<T> }
   ) {
     super(bot);
-
     this.openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
 
     if (options?.subscriptionModule)
       this.subscriptionModule = options.subscriptionModule;
   }
 
-  protected initModule(): void {
+  initModule(): void {
+    this.image = this.image.bind(this);
+    this.voice = this.voice.bind(this);
+
     this.bot.command(["image", "generate", "img", "gen", "dalle"], this.image);
     this.bot.command(["speak", "voice", "tts"], this.voice);
 
@@ -219,7 +221,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     if (!checkHasArgs(ctx) && !replyMessage?.photo && !ctx.message?.photo)
       return;
 
-    if (this.subscriptionModule) {
+    if (this?.subscriptionModule) {
       if (
         (!user.subscribe?.expires || user.subscribe!.expires < new Date()) &&
         user.generations > this.subscriptionModule.maxLimit

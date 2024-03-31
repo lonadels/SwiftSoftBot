@@ -33,10 +33,10 @@ export function initBot() {
 
   bot.use(checkUserExistsOrCreate);
 
-  new GreetingModule<BotContext>(bot);
-  new JokeModule<BotContext>(bot);
-  new GPTModule<BotContext>(bot, {
-    subscriptionModule: new SubscriptionModule<BotContext>(bot),
+  new GreetingModule(bot);
+  new JokeModule(bot);
+  new GPTModule(bot, {
+    subscriptionModule: new SubscriptionModule(bot),
   });
 
   bot.catch(errorHandler);

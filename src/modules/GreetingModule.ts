@@ -2,7 +2,7 @@ import { Bot, CommandContext, Context } from "grammy";
 import { Module } from "./Module";
 
 export class GreetingModule<T extends Context> extends Module<T> {
-  protected initModule() {
+  initModule() {
     this.bot.command("start", this.greet);
   }
 

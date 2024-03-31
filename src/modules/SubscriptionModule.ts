@@ -7,23 +7,27 @@ import User from "../database/entities/User";
 export class SubscriptionModule<T extends Context = Context> extends Module<T> {
   public readonly maxLimit: number = 5;
 
-  public readonly subscribeMenu: Menu<T> = new Menu<T>("subscribe").text(
-    "Оформить подписку",
-    async (ctx) => {
-      await ctx.replyWithInvoice(
-        "Подписка",
-        "Доступ к расширенным генерациям на 30 дней",
-        "subscription",
-        process.env.PAY_TOKEN!,
-        "RUB",
-        [{ label: "Total", amount: 199 * 100 }]
-      );
-    }
-  );
+  public readonly subscribeMenu: Menu<T>;
 
-  protected initModule() {
+  constructor(bot: Bot<T>) {
+    super(bot);
+    this.subscribeMenu = new Menu<T>("subscribe").text(
+      "Оформить подписку",
+      async (ctx) => {
+        await ctx.replyWithInvoice(
+          "Подписка",
+          "Доступ к расширенным генерациям на 30 дней",
+          "subscription",
+          process.env.PAY_TOKEN!,
+          "RUB",
+          [{ label: "Total", amount: 199 * 100 }]
+        );
+      }
+    );
     this.bot.use(this.subscribeMenu);
+  }
 
+  initModule() {
     this.bot.on("pre_checkout_query", (ctx) => {
       ctx.answerPreCheckoutQuery(true);
     });
