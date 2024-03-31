@@ -127,8 +127,6 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       }
     }
 
-    console.log(images);
-
     this.openai.chat.completions
       .create({
         messages: [
