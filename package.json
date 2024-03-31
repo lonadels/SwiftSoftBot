@@ -1,7 +1,7 @@
 {
   "name": "swiftsoftbot",
   "version": "1.0.0",
-  "description": "KFC & Rostics bot for accounting for employee lunches",
+  "description": "Swifie 💖",
   "scripts": {
     "build": "rimraf ./dist && tsc",
     "start": "npm run build && node dist/main.js",
@@ -9,21 +9,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lonadels/CrewLunchBot.git"
+    "url": "git+https://github.com/lonadels/SwiftSoftBot.git"
   },
   "keywords": [
     "bot",
-    "kfc",
-    "rostics",
     "grammy",
     "telegram"
   ],
   "author": "Lonadels",
   "license": "AGPL-3.0",
   "bugs": {
-    "url": "https://github.com/lonadels/CrewLunchBot/issues"
+    "url": "https://github.com/lonadels/SwiftSoftBot/issues"
   },
-  "homepage": "https://github.com/lonadels/CrewLunchBot#readme",
+  "homepage": "https://github.com/lonadels/SwiftSoftBot#readme",
   "devDependencies": {
     "@types/node": "^20.11.5",
     "@types/pg": "^8.10.9",
@@ -39,7 +37,6 @@
     "@grammyjs/menu": "^1.2.1",
     "@grammyjs/parse-mode": "^1.9.0",
     "@grammyjs/router": "^2.0.0",
-    "@grammyjs/runner": "^2.0.3",
     "@telegraf/entity": "^0.5.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
