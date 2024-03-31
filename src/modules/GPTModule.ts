@@ -4,7 +4,6 @@ import OpenAI from "openai";
 import { useType } from "../hooks/useType";
 import checkHasArgs from "../utils/checkHasArgs";
 import * as fs from "fs";
-import { errorHandler } from "../errorHandler";
 import DataSource from "../database/DataSource";
 import User from "../database/entities/User";
 import { convertImageFormat } from "../utils/convertImageFormat";
@@ -90,29 +89,8 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           const buffer = Buffer.from(await response.arrayBuffer());
           const base64text = buffer.toString("base64");
 
-          images.push({
-            type: "image_url",
-            image_url: {
-              url: `data:image/jpeg;base64,${base64text}`,
-              detail: "auto",
-            },
-          });
-        }
-      }
-    }
-
-    if (ctx.message?.reply_to_message?.photo) {
-      for (const photo of ctx.message.reply_to_message.photo) {
-        const fileInfo = await ctx.api.getFile(photo.file_id);
-
-        if (fileInfo.file_path) {
-          const url = `https://api.telegram.org/file/bot${process.env
-            .BOT_TOKEN!}/${fileInfo.file_path}`;
-
-          const response = await fetch(url);
-          const buffer = Buffer.from(await response.arrayBuffer());
-          const base64text = buffer.toString("base64");
-
+          // TODO: load all images
+          images.splice(0);
           images.push({
             type: "image_url",
             image_url: {
@@ -123,6 +101,33 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         }
       }
     }
+
+    if (ctx.message?.reply_to_message?.photo) {
+      for (const photo of ctx.message.reply_to_message?.photo) {
+        const fileInfo = await ctx.api.getFile(photo.file_id);
+
+        if (fileInfo.file_path) {
+          const url = `https://api.telegram.org/file/bot${process.env
+            .BOT_TOKEN!}/${fileInfo.file_path}`;
+
+          const response = await fetch(url);
+          const buffer = Buffer.from(await response.arrayBuffer());
+          const base64text = buffer.toString("base64");
+
+          // TODO: load all images
+          images.splice(0);
+          images.push({
+            type: "image_url",
+            image_url: {
+              url: `data:image/jpeg;base64,${base64text}`,
+              detail: "high",
+            },
+          });
+        }
+      }
+    }
+
+    console.log(images);
 
     this.openai.chat.completions
       .create({
