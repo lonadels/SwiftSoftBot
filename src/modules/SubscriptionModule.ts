@@ -86,7 +86,7 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
 
   public async onLimitExceeded(ctx: Context) {
     await ctx.reply(
-      `<b>Ох! Кажется Ваш лимит исчерпан :(</b>\nПолучите доступ к расширенным генерациям с подпиской за ${this.cost} ₽/мес.`,
+      `<b>Ох! Кажется Ваш лимит исчерпан 🥺</b>\nПолучите доступ к расширенным генерациям с подпиской за ${this.cost} ₽/мес.`,
       {
         parse_mode: "HTML",
         reply_markup: this.subscribeMenu,
