@@ -268,7 +268,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           .finally(() => typing.stop())
           .then(async (response) => {
             if (response.data[0].url) {
-              await ctx.replyWithPhoto(response.data[0].url, {
+              await ctx.replyWithDocument(response.data[0].url, {
                 reply_parameters: {
                   allow_sending_without_reply: false,
                   message_id: ctx.message!.message_id,
@@ -300,7 +300,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         .finally(() => typing.stop())
         .then(async (response) => {
           if (response.data[0].url)
-            await ctx.replyWithPhoto(response.data[0].url, {
+            await ctx.replyWithDocument(response.data[0].url, {
               reply_parameters: {
                 allow_sending_without_reply: false,
                 message_id: ctx.message!.message_id,
