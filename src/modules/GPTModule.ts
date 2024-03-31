@@ -36,34 +36,37 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     if (options?.subscriptionModule)
       this.subscriptionModule = options.subscriptionModule;
 
-    this.voiceMenu = new Menu("voice").dynamic(async (ctx, range) => {
-      const userRepo = DataSource.getRepository(User);
-      const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
+    this.voiceMenu = new Menu("voice", { autoAnswer: false }).dynamic(
+      async (ctx, range) => {
+        const userRepo = DataSource.getRepository(User);
+        const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
 
-      if (!user) return;
+        if (!user) return;
 
-      const voices: Voices[] = [
-        "alloy",
-        "echo",
-        "fable",
-        "nova",
-        "onyx",
-        "shimmer",
-      ];
+        const voices: Voices[] = [
+          "alloy",
+          "echo",
+          "fable",
+          "nova",
+          "onyx",
+          "shimmer",
+        ];
 
-      voices.forEach((voice, i) => {
-        range.text(
-          `${user.voice == voice ? "✅ " : ""}${voice}`,
-          async (ctx) => {
-            user.voice = voice;
-            userRepo.save(user);
+        voices.forEach((voice, i) => {
+          range.text(
+            `${user.voice == voice ? "✅ " : ""}${voice}`,
+            async (ctx) => {
+              user.voice = voice;
+              userRepo.save(user);
 
-            ctx.menu.update();
-          }
-        );
-        if ((i + 1) % 3 === 0) range.row();
-      });
-    });
+              ctx.answerCallbackQuery({ text: `Голос "${voice}" установлен` });
+              ctx.menu.update();
+            }
+          );
+          if ((i + 1) % 3 === 0) range.row();
+        });
+      }
+    );
     this.bot.use(this.voiceMenu);
 
     this.bot.command(["image", "generate", "img", "gen", "dalle"], (ctx) =>
@@ -213,7 +216,10 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
   }
 
   private async setVoice(ctx: Context) {
-    await ctx.reply("Выберите голос:", { reply_markup: this.voiceMenu });
+    await ctx.reply("<b>🎤 Выберите голос:</b>", {
+      parse_mode: "HTML",
+      reply_markup: this.voiceMenu,
+    });
   }
 
   private async voice(ctx: CommandContext<T>) {
