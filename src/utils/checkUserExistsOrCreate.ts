@@ -5,7 +5,7 @@ import User from "../database/entities/User";
 export async function checkUserExistsOrCreate(
   ctx: Context,
   next: NextFunction
-) {
+): Promise<void> {
   const userRepo = DataSource.getRepository(User);
 
   userRepo.findOneByOrFail({ telegramId: ctx.from?.id }).catch(() => {
@@ -14,5 +14,5 @@ export async function checkUserExistsOrCreate(
     userRepo.save(user);
   });
 
-  next();
+  await next();
 }

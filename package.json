@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Swifie 💖",
   "scripts": {
-    "build": "rimraf ./dist && tsc --skipLibCheck",
+    "build": "rimraf ./dist && tsc",
     "start": "npm run build && node dist/main.js",
     "dev": "npx nodemon -q"
   },

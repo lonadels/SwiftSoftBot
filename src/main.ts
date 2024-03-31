@@ -5,14 +5,6 @@ dotenv.config(); // ALWAYS BE FIRST!
 
 import "reflect-metadata";
 
-import { ParseModeFlavor } from "@grammyjs/parse-mode";
-import { Context, InputFile, InlineKeyboard } from "grammy";
-import { MenuFlavor } from "@grammyjs/menu";
-
-import { HydrateFlavor } from "@grammyjs/hydrate";
-
-export type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
-
 import DataSource from "./database/DataSource";
 
 import { initBot } from "./initBot";

@@ -1,5 +1,4 @@
 import { Context } from "grammy";
-import { BotContext } from "../main";
 
 class TypeStatus {
   private _typing: boolean = true;

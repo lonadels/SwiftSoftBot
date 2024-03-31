@@ -11,15 +11,7 @@ import { convertImageFormat } from "../utils/convertImageFormat";
 import { createReadStreamFromBuffer } from "../utils/createReadStreamFromBuffer";
 import { SubscriptionModule } from "./SubscriptionModule";
 
-export interface IGPTModule {
-  voice(ctx: CommandContext<Context>): void;
-  image(ctx: CommandContext<Context>): void;
-}
-
-export class GPTModule<T extends Context>
-  extends Module<T>
-  implements IGPTModule
-{
+export class GPTModule<T extends Context = Context> extends Module<T> {
   private openai: OpenAI;
   private readonly subscriptionModule?: SubscriptionModule<T>;
 
@@ -28,13 +20,17 @@ export class GPTModule<T extends Context>
     options?: { subscriptionModule?: SubscriptionModule<T> }
   ) {
     super(bot);
+
     this.openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
 
     if (options?.subscriptionModule)
       this.subscriptionModule = options.subscriptionModule;
   }
 
-  override initModule(): void {
+  protected initModule(): void {
+    this.bot.command(["image", "generate", "img", "gen", "dalle"], this.image);
+    this.bot.command(["speak", "voice", "tts"], this.voice);
+
     this.bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
       if (
         ctx.match[2] ||

@@ -2,7 +2,7 @@ import { Bot, Context } from "grammy";
 import { Module } from "./Module";
 
 export class JokeModule<T extends Context> extends Module<T> {
-  override initModule() {
+  protected initModule() {
     this.bot.hears(/^((да|нет)[^\s\w]*)$/i, (ctx) => {
       ctx.reply(
         this.jokeAnswer(

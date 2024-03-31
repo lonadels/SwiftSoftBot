@@ -1,13 +1,16 @@
 import { autoRetry } from "@grammyjs/auto-retry";
-import { hydrateReply } from "@grammyjs/parse-mode";
-import { Bot } from "grammy";
-import { hydrate } from "@grammyjs/hydrate";
+import { ParseModeFlavor, hydrateReply } from "@grammyjs/parse-mode";
+import { Bot, Context } from "grammy";
+import { HydrateFlavor, hydrate } from "@grammyjs/hydrate";
 import { SubscriptionModule } from "./modules/SubscriptionModule";
-import { image, start, voice } from "./commands";
 import { checkUserExistsOrCreate } from "./utils/checkUserExistsOrCreate";
 import { errorHandler } from "./errorHandler";
-import { BotContext } from "./main";
 import { GPTModule } from "./modules/GPTModule";
+import { MenuFlavor } from "@grammyjs/menu";
+import { JokeModule } from "./modules/JokeModule";
+import { GreetingModule } from "./modules/GreetingModule";
+
+type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
 
 export function initBot() {
   const bot = new Bot<BotContext>(process.env.BOT_TOKEN!);
@@ -25,17 +28,16 @@ export function initBot() {
   bot.use(hydrate());
   bot.use(hydrateReply);
 
-  bot.use(checkUserExistsOrCreate);
-
   // ignore forwarded messages
   bot.on("msg:forward_origin");
 
-  const subscriptionModule = new SubscriptionModule<BotContext>(bot);
-  const gptModule = new GPTModule<BotContext>(bot, { subscriptionModule });
+  bot.use(checkUserExistsOrCreate);
 
-  bot.command("start", start);
-  bot.command(["image", "generate", "img", "gen", "dalle"], image(gptModule));
-  bot.command(["speak", "voice", "tts"], voice(gptModule));
+  new GreetingModule<BotContext>(bot);
+  new JokeModule<BotContext>(bot);
+  new GPTModule<BotContext>(bot, {
+    subscriptionModule: new SubscriptionModule<BotContext>(bot),
+  });
 
   bot.catch(errorHandler);
 

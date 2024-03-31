@@ -1,6 +1,6 @@
 import { Bot, Context } from "grammy";
 
-export abstract class Module<T extends Context> {
+export abstract class Module<T extends Context = Context> {
   private readonly _bot: Bot<T>;
 
   protected get bot(): Bot<T> {
