@@ -184,8 +184,6 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         content: ctx.message?.reply_to_message.text,
       });
 
-    console.log(reply);
-
     const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
     if (ctx.message?.photo) {
@@ -238,8 +236,6 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         }
       }
     }
-
-    console.log(images);
 
     this.openai.chat.completions
       .create({
