@@ -1,4 +1,4 @@
-import { Bot, BotError, CommandContext, Context, InputFile } from "grammy";
+import { Bot, CommandContext, Context, InputFile } from "grammy";
 import { Module } from "./Module";
 import OpenAI from "openai";
 import { useType } from "../hooks/useType";
@@ -213,7 +213,6 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
     if (ctx.message?.reply_to_message?.photo) {
       for (const photo of ctx.message.reply_to_message.photo) {
-        console.log(photo);
         const fileInfo = await ctx.api.getFile(photo.file_id);
 
         if (fileInfo.file_path) {
@@ -251,8 +250,12 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
               {
                 type: "text",
                 text:
-                  (ctx.message?.quote?.text
-                    ? "```\n" + ctx.message.quote.text + "\n```\n\n"
+                  (ctx.message?.quote?.text ||
+                  ctx.message?.reply_to_message?.text
+                    ? "<quote>\n" +
+                      (ctx.message?.quote?.text ||
+                        ctx.message?.reply_to_message?.text) +
+                      "\n</quote>\n\n"
                     : "") + text,
               },
               ...images,
@@ -286,7 +289,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
   }
 
   private async voiceSettings(ctx: Context) {
-    await ctx.reply("<b>🎤 Настройки озвучки текста</b>", {
+    await ctx.reply("<b>🎤 Настройки озвучки текста для этого чата</b>", {
       parse_mode: "HTML",
       reply_markup: this.voiceSettingsMenu,
     });
