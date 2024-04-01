@@ -11,19 +11,111 @@ import { createReadStreamFromBuffer } from "../utils/createReadStreamFromBuffer"
 import { SubscriptionModule } from "./SubscriptionModule";
 import { BotCommand } from "grammy/types";
 import { Menu } from "@grammyjs/menu";
-import { Voices } from "../database/Voices";
+import { Quality, Voice } from "../database/VoiceTypes";
+import Chat from "../database/entities/Chat";
+import { upFirst } from "../utils/strings";
 
 export class GPTModule<T extends Context = Context> extends Module<T> {
   private readonly openai: OpenAI;
   private readonly subscriptionModule?: SubscriptionModule<T>;
 
   public readonly commands: BotCommand[] = [
-    { command: "tts", description: "Озвучить текст" },
+    { command: "voice", description: "Озвучить текст" },
+    { command: "voice_settings", description: "Настройки озвучки" },
     { command: "img", description: "Сгенерировать изображение" },
-    { command: "tts_voice", description: "Выбрать голос" },
   ];
 
-  private voiceMenu!: Menu;
+  private voiceSettingsMenu: Menu = new Menu("voice_settings").dynamic(
+    async (ctx, range) => {
+      const chatRepo = DataSource.getRepository(Chat);
+      const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
+
+      if (!chat) return;
+
+      range
+        .submenu(() => `Голос: ${upFirst(chat.voice)}`, "voice_select")
+        .row()
+        .submenu(
+          () =>
+            `Качество: ${{ fast: "низкое", high: "высокое" }[chat.quality]}`,
+          "voice_quality"
+        );
+    }
+  );
+
+  private voiceQualityMenu: Menu = new Menu("voice_quality", {
+    autoAnswer: false,
+  })
+    .dynamic(async (ctx, range) => {
+      const chatRepo = DataSource.getRepository(Chat);
+      const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
+
+      if (!chat) return;
+
+      const qualities: Quality[] = ["fast", "high"];
+      const titles = { fast: "Низкое", high: "Высокое" };
+
+      qualities.forEach((quality) => {
+        range.text(
+          () => (chat.quality == quality ? "✅ " : "") + titles[quality],
+          async (ctx) => {
+            await this.setQuality(chat, quality);
+            await ctx.answerCallbackQuery({
+              text: `Качество "${titles[quality]}" установлено`,
+            });
+
+            ctx.menu.update();
+          }
+        );
+      });
+    })
+    .row()
+    .back("← Назад");
+
+  private async setQuality(chat: Chat, quality: Quality) {
+    const chatRepo = DataSource.getRepository(Chat);
+
+    chat.quality = quality;
+    await chatRepo.save(chat);
+  }
+
+  private voiceSelectMenu: Menu = new Menu("voice_select", {
+    autoAnswer: false,
+  })
+    .dynamic(async (ctx, range) => {
+      const chatRepo = DataSource.getRepository(Chat);
+      const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
+
+      if (!chat) return;
+
+      const voices: Voice[] = [
+        "alloy",
+        "echo",
+        "fable",
+        "nova",
+        "onyx",
+        "shimmer",
+      ];
+
+      voices.forEach((voice, i) => {
+        range.text(
+          () => `${chat.voice == voice ? "✅ " : ""}${upFirst(voice)}`,
+          async (ctx) => {
+            chat.voice = voice;
+            await chatRepo.save(chat);
+
+            await ctx.answerCallbackQuery({
+              text: `Голос "${upFirst(voice)}" установлен`,
+            });
+
+            ctx.menu.update();
+          }
+        );
+        if ((i + 1) % 3 === 0) range.row();
+      });
+    })
+    .row()
+    .back("← Назад");
 
   constructor(
     bot: Bot<T>,
@@ -36,46 +128,16 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     if (options?.subscriptionModule)
       this.subscriptionModule = options.subscriptionModule;
 
-    this.voiceMenu = new Menu("voice", { autoAnswer: false }).dynamic(
-      async (ctx, range) => {
-        const userRepo = DataSource.getRepository(User);
-        const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
+    this.voiceSettingsMenu.register(this.voiceSelectMenu);
+    this.voiceSettingsMenu.register(this.voiceQualityMenu);
 
-        if (!user) return;
-
-        const voices: Voices[] = [
-          "alloy",
-          "echo",
-          "fable",
-          "nova",
-          "onyx",
-          "shimmer",
-        ];
-
-        voices.forEach((voice, i) => {
-          range.text(
-            () => `${user.voice == voice ? "✅ " : ""}${voice}`,
-            async (ctx) => {
-              user.voice = voice;
-              await userRepo.save(user);
-
-              await ctx.answerCallbackQuery({
-                text: `Голос "${voice}" установлен`,
-              });
-
-              ctx.menu.update();
-            }
-          );
-          if ((i + 1) % 3 === 0) range.row();
-        });
-      }
-    );
-    this.bot.use(this.voiceMenu);
+    this.bot.use(this.voiceSettingsMenu);
 
     this.bot.command(["image", "generate", "img", "gen", "dalle"], (ctx) =>
       this.image(ctx)
     );
-    this.bot.command("tts_voice", (ctx) => this.setVoice(ctx));
+    this.bot.command("voice_settings", (ctx) => this.voiceSettings(ctx));
+
     this.bot.command(["speak", "voice", "tts"], (ctx) => this.voice(ctx));
 
     this.bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
@@ -93,13 +155,18 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private onError(ctx: Context): (e: any) => Promise<void> {
     return async (e) => {
-      await ctx.reply("⚠️ Возникла проблема\n\n```" + e.toString() + "```", {
-        parse_mode: "MarkdownV2",
-        reply_parameters: {
-          allow_sending_without_reply: false,
-          message_id: ctx.message!.message_id,
-        },
-      });
+      await ctx.reply(
+        '<b>⚠️ Возникла проблема</b>\n<pre language="error">' +
+          e.toString() +
+          "</pre>",
+        {
+          parse_mode: "HTML",
+          reply_parameters: {
+            allow_sending_without_reply: false,
+            message_id: ctx.message!.message_id,
+          },
+        }
+      );
     };
   }
 
@@ -117,10 +184,12 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         content: ctx.message?.reply_to_message.text,
       });
 
+    console.log(reply);
+
     const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
     if (ctx.message?.photo) {
-      for (const photo of ctx.message?.photo) {
+      for (const photo of ctx.message.photo) {
         const fileInfo = await ctx.api.getFile(photo.file_id);
 
         if (fileInfo.file_path) {
@@ -145,7 +214,8 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     }
 
     if (ctx.message?.reply_to_message?.photo) {
-      for (const photo of ctx.message.reply_to_message?.photo) {
+      for (const photo of ctx.message.reply_to_message.photo) {
+        console.log(photo);
         const fileInfo = await ctx.api.getFile(photo.file_id);
 
         if (fileInfo.file_path) {
@@ -169,6 +239,8 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       }
     }
 
+    console.log(images);
+
     this.openai.chat.completions
       .create({
         messages: [
@@ -191,9 +263,8 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
             ],
           },
         ],
-        model: ctx.message?.photo
-          ? "gpt-4-vision-preview"
-          : "gpt-4-0125-preview",
+        model:
+          images.length > 0 ? "gpt-4-vision-preview" : "gpt-4-0125-preview",
       })
       .finally(() => typing.stop())
       .then(async (completion) => {
@@ -218,18 +289,18 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       });
   }
 
-  private async setVoice(ctx: Context) {
-    await ctx.reply("<b>🎤 Выберите голос:</b>", {
+  private async voiceSettings(ctx: Context) {
+    await ctx.reply("<b>🎤 Настройки озвучки текста</b>", {
       parse_mode: "HTML",
-      reply_markup: this.voiceMenu,
+      reply_markup: this.voiceSettingsMenu,
     });
   }
 
   private async voice(ctx: CommandContext<T>) {
-    const userRepo = DataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
+    const chatRepo = DataSource.getRepository(Chat);
+    const chat = await chatRepo.findOneBy({ telegramId: ctx.from?.id });
 
-    if (!user) return;
+    if (!chat) return;
 
     if (!checkHasArgs(ctx)) return;
 
@@ -243,8 +314,8 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
     await this.openai.audio.speech
       .create({
-        model: "tts-1-hd",
-        voice: user.voice,
+        model: { fast: "tts-1", high: "tts-1-hd" }[chat.quality],
+        voice: chat.voice,
         input: ctx.match,
       })
       // .finally(async () => typing.stop() )
@@ -261,15 +332,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           },
         });
       })
-      .catch(async (e) => {
-        await ctx.reply("⚠️ Возникла проблема\n\n```" + e.toString() + "```", {
-          parse_mode: "MarkdownV2",
-          reply_parameters: {
-            allow_sending_without_reply: false,
-            message_id: ctx.message!.message_id,
-          },
-        });
-      });
+      .catch(this.onError(ctx));
   }
 
   private async image(ctx: CommandContext<T>) {

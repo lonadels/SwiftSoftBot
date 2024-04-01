@@ -3,7 +3,10 @@ import { ParseModeFlavor, hydrateReply } from "@grammyjs/parse-mode";
 import { Bot, Context } from "grammy";
 import { HydrateFlavor, hydrate } from "@grammyjs/hydrate";
 import { SubscriptionModule } from "./modules/SubscriptionModule";
-import { checkUserExistsOrCreate } from "./utils/checkUserExistsOrCreate";
+import {
+  checkChatExistsOrCreate,
+  checkUserExistsOrCreate,
+} from "./utils/checkExistsOrCreate";
 import { errorHandler } from "./errorHandler";
 import { GPTModule } from "./modules/GPTModule";
 import { MenuFlavor } from "@grammyjs/menu";
@@ -26,6 +29,7 @@ export function initBot() {
   bot.on("msg:forward_origin", () => {});
 
   bot.use(checkUserExistsOrCreate);
+  bot.use(checkChatExistsOrCreate);
 
   const greeting = new GreetingModule(bot);
   const joke = new JokeModule(bot);

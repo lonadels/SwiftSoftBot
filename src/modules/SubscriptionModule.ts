@@ -4,8 +4,7 @@ import { Menu } from "@grammyjs/menu";
 import DataSource from "../database/DataSource";
 import User from "../database/entities/User";
 import Month from "../utils/month";
-import daysDiff from "../utils/daysDiff";
-import declOfNum from "../utils/declOfNum";
+import { daysDiff, declOfNum } from "../utils/strings";
 import { BotCommand } from "grammy/types";
 
 export class SubscriptionModule<T extends Context = Context> extends Module<T> {
@@ -52,7 +51,13 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
       await ctx.reply(
         `<b>✨ Вы успешно активировали подписку на 30 дней!</b>\n` +
           `Теперь вы можете пользоваться расширенными генерациями без ограничений.`,
-        { parse_mode: "HTML" }
+        {
+          parse_mode: "HTML",
+          reply_parameters: {
+            allow_sending_without_reply: false,
+            message_id: ctx.message!.message_id,
+          },
+        }
       );
     });
   }
@@ -65,7 +70,13 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
         "subscription",
         process.env.PAY_TOKEN!,
         "RUB",
-        [{ label: "Total", amount: this.cost * 100 }]
+        [{ label: "Total", amount: this.cost * 100 }],
+        {
+          reply_parameters: {
+            allow_sending_without_reply: false,
+            message_id: ctx.message!.message_id,
+          },
+        }
       );
     else this.subscribe(ctx);
   }
@@ -108,7 +119,13 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
       await ctx.reply(
         "<b>⭐ Ваша подписка активна</b>\n" +
           `До ${day} ${month} ${year} (${leftDecl} ${daysLeft} ${daysDecl}) `,
-        { parse_mode: "HTML" }
+        {
+          parse_mode: "HTML",
+          reply_parameters: {
+            allow_sending_without_reply: false,
+            message_id: ctx.message!.message_id,
+          },
+        }
       );
     }
   }
@@ -119,6 +136,11 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
       {
         parse_mode: "HTML",
         reply_markup: this.subscribeMenu,
+
+        reply_parameters: {
+          allow_sending_without_reply: false,
+          message_id: ctx.message!.message_id,
+        },
       }
     );
   }
