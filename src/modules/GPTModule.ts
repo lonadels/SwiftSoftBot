@@ -385,7 +385,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
                 new Date().getTime() / 1000
               ).toString()}.png`
             ),
-            model: "dall-e-2",
+            model: "dall-e-3",
             size: "1024x1024",
             response_format: "url",
           })
