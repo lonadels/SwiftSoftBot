@@ -130,9 +130,28 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
     }
   }
 
+  public async generationsNotify(ctx: Context): Promise<string | undefined> {
+    const userRepo = DataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
+    if (!user) return undefined;
+
+    const limitLeft = this.maxLimit - user.generations;
+
+    if (user.generations < this.maxLimit)
+      return `💡 У вас осталось ${declOfNum(limitLeft, [
+        `осталась ${limitLeft} генерация`,
+        `остались ${limitLeft} генерации`,
+        `осталось ${limitLeft} генераций`,
+      ])}, по достижению лимита получите доступ к расширенным генерациям за ${
+        this.cost
+      } ₽/мес: /subscribe`;
+    else
+      return `Ваш лимит генераций исчерпан 🥺 \nПолучите доступ к расширенным генерациям за ${this.cost} ₽/мес: /subscribe`;
+  }
+
   public async onLimitExceeded(ctx: Context) {
     await ctx.reply(
-      `<b>Ох! Кажется Ваш лимит исчерпан 🥺</b>\nПолучите доступ к расширенным генерациям с подпиской за ${this.cost} ₽/мес.`,
+      `<b>Ох! Кажется, Ваш лимит исчерпан 🥺</b>\nПолучите доступ к расширенным генерациям за ${this.cost} ₽/мес.`,
       {
         parse_mode: "HTML",
         reply_markup: this.subscribeMenu,
@@ -155,8 +174,8 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
 
     if (!user) return false;
 
-    if (user.generations > this.maxLimit) this.onLimitExceeded(ctx);
+    if (user.generations >= this.maxLimit) await this.onLimitExceeded(ctx);
 
-    return true;
+    return user.generations >= this.maxLimit;
   }
 }

@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Subscribe } from "./Subscribe";
-import { Voice } from "../VoiceTypes";
+import { VoiceName } from "../VoiceTypes";
 
 @Entity()
 export default class User {

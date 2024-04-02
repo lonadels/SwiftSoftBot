@@ -8,8 +8,9 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Subscribe } from "./Subscribe";
-import { Voice, Quality } from "../VoiceTypes";
-
+import { VoiceName, VoiceQuality } from "../VoiceTypes";
+import { Voice } from "./Voice";
+import { Image } from "./Image";
 @Entity()
 export default class Chat {
   @PrimaryGeneratedColumn({ type: "bigint" })
@@ -18,15 +19,9 @@ export default class Chat {
   @Column({ type: "bigint", nullable: true, unique: true })
   telegramId?: number;
 
-  @Column({
-    enum: ["alloy", "echo", "fable", "nova", "onyx", "shimmer"],
-    default: "nova",
-  })
+  @Column(() => Voice)
   voice!: Voice;
 
-  @Column({
-    enum: ["fast", "high"],
-    default: "high",
-  })
-  quality!: Quality;
+  @Column(() => Image)
+  image!: Image;
 }

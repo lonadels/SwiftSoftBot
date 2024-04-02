@@ -1,9 +1,14 @@
-export declare type Voice =
-  | "alloy"
-  | "echo"
-  | "fable"
-  | "nova"
-  | "onyx"
-  | "shimmer";
+export enum VoiceName {
+  Alloy = "alloy",
+  Echo = "echo",
+  Fable = "fable",
+  Nova = "nova",
+  Onyx = "onyx",
+  Shimmer = "shimmer",
+}
+export enum VoiceQuality {
+  Default = "default",
+  HD = "hd",
+}
 
-export declare type Quality = "fast" | "high";
+export default { VoiceName, VoiceQuality };

@@ -11,9 +11,15 @@ import { createReadStreamFromBuffer } from "../utils/createReadStreamFromBuffer"
 import { SubscriptionModule } from "./SubscriptionModule";
 import { BotCommand } from "grammy/types";
 import { Menu } from "@grammyjs/menu";
-import { Quality, Voice } from "../database/VoiceTypes";
+import { VoiceQuality, VoiceName } from "../database/VoiceTypes";
 import Chat from "../database/entities/Chat";
-import { upFirst } from "../utils/strings";
+import { declOfNum, upFirst } from "../utils/strings";
+import {
+  ChatImageQuality,
+  ImageQuality,
+  ImageSize,
+  ImageStyle as ImageStyle,
+} from "../database/ImageTypes";
 
 export class GPTModule<T extends Context = Context> extends Module<T> {
   private readonly openai: OpenAI;
@@ -23,7 +29,35 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     { command: "voice", description: "Озвучить текст" },
     { command: "voice_settings", description: "Настройки озвучки" },
     { command: "img", description: "Сгенерировать изображение" },
+    { command: "img_settings", description: "Настройки генерации изображений" },
   ];
+
+  private imageSettingsMenu: Menu = new Menu("image_settings").dynamic(
+    async (ctx, range) => {
+      const chatRepo = DataSource.getRepository(Chat);
+      const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
+
+      if (!chat) return;
+
+      range
+        .submenu(
+          () =>
+            `Качество: ${
+              { hd: "высокое", standart: "стандартное" }[chat.image.quality]
+            }`,
+          "image_quality"
+        )
+        .row()
+        .submenu(() => `Размер: ${chat.image.size}`, "image_size")
+        .submenu(
+          () =>
+            `Стиль: ${
+              { natural: "обычный", vivid: "яркий" }[chat.image.style]
+            }`,
+          "image_style"
+        );
+    }
+  );
 
   private voiceSettingsMenu: Menu = new Menu("voice_settings").dynamic(
     async (ctx, range) => {
@@ -33,17 +67,19 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       if (!chat) return;
 
       range
-        .submenu(() => `Голос: ${upFirst(chat.voice)}`, "voice_select")
+        .submenu(() => `Голос: ${upFirst(chat.voice.name)}`, "voice_select")
         .row()
         .submenu(
           () =>
-            `Качество: ${{ fast: "низкое", high: "высокое" }[chat.quality]}`,
+            `Качество: ${
+              { default: "обычное", hd: "высокое" }[chat.voice.quality]
+            }`,
           "voice_quality"
         );
     }
   );
 
-  private voiceQualityMenu: Menu = new Menu("voice_quality", {
+  private imageQualityMenu: Menu = new Menu("image_quality", {
     autoAnswer: false,
   })
     .dynamic(async (ctx, range) => {
@@ -52,14 +88,16 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
       if (!chat) return;
 
-      const qualities: Quality[] = ["fast", "high"];
-      const titles = { fast: "Низкое", high: "Высокое" };
+      const titles: { [key in ImageQuality]: string } = {
+        standart: "Обычное",
+        hd: "Высокое",
+      };
 
-      qualities.forEach((quality) => {
+      Object.values(ImageQuality).forEach((quality) => {
         range.text(
-          () => (chat.quality == quality ? "✅ " : "") + titles[quality],
+          () => (chat.image.quality == quality ? "✅ " : "") + titles[quality],
           async (ctx) => {
-            await this.setQuality(chat, quality);
+            await this.setImageQualty(chat, quality);
             await ctx.answerCallbackQuery({
               text: `Качество "${titles[quality]}" установлено`,
             });
@@ -72,12 +110,117 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     .row()
     .back("← Назад");
 
-  private async setQuality(chat: Chat, quality: Quality) {
+  private imageStyleMenu: Menu = new Menu("image_style", {
+    autoAnswer: false,
+  })
+    .dynamic(async (ctx, range) => {
+      const chatRepo = DataSource.getRepository(Chat);
+      const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
+
+      if (!chat) return;
+
+      const titles: { [key in ImageStyle]: string } = {
+        natural: "Обычный",
+        vivid: "Яркий",
+      };
+
+      Object.values(ImageStyle).forEach((style) => {
+        range.text(
+          () => (chat.image.style == style ? "✅ " : "") + titles[style],
+          async (ctx) => {
+            await this.setImageStyle(chat, style);
+            await ctx.answerCallbackQuery({
+              text: `Стиль "${titles[style]}" установлен`,
+            });
+
+            ctx.menu.update();
+          }
+        );
+      });
+    })
+    .row()
+    .back("← Назад");
+
+  private voiceQualityMenu: Menu = new Menu("voice_quality", {
+    autoAnswer: false,
+  })
+    .dynamic(async (ctx, range) => {
+      const chatRepo = DataSource.getRepository(Chat);
+      const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
+
+      if (!chat) return;
+
+      const titles: { [key in VoiceQuality]: string } = {
+        default: "Обычное",
+        hd: "Высокое",
+      };
+
+      Object.values(VoiceQuality).forEach((quality) => {
+        range.text(
+          () => (chat.voice.quality == quality ? "✅ " : "") + titles[quality],
+          async (ctx) => {
+            await this.setVoiceQuality(chat, quality);
+            await ctx.answerCallbackQuery({
+              text: `Качество "${titles[quality]}" установлено`,
+            });
+
+            ctx.menu.update();
+          }
+        );
+      });
+    })
+    .row()
+    .back("← Назад");
+
+  private async setImageQualty(chat: Chat, quality: ImageQuality) {
     const chatRepo = DataSource.getRepository(Chat);
 
-    chat.quality = quality;
+    chat.image.quality = quality;
     await chatRepo.save(chat);
   }
+
+  private async setImageStyle(chat: Chat, style: ImageStyle) {
+    const chatRepo = DataSource.getRepository(Chat);
+
+    chat.image.style = style;
+    await chatRepo.save(chat);
+  }
+
+  private async setVoiceQuality(chat: Chat, quality: VoiceQuality) {
+    const chatRepo = DataSource.getRepository(Chat);
+
+    chat.voice.quality = quality;
+    await chatRepo.save(chat);
+  }
+
+  private imageSizeMenu: Menu = new Menu("image_size", {
+    autoAnswer: false,
+  })
+    .dynamic(async (ctx, range) => {
+      const chatRepo = DataSource.getRepository(Chat);
+      const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
+
+      if (!chat) return;
+
+      Object.values(ImageSize).forEach((size, i) => {
+        range.text(
+          () => `${chat.image.size == size ? "✅ " : ""}${size}`,
+          async (ctx) => {
+            chat.image.size = size;
+            await chatRepo.save(chat);
+
+            await ctx.answerCallbackQuery({
+              text: `Размер "${size}" установлен`,
+            });
+
+            ctx.menu.update();
+          }
+        );
+        if ((i + 1) % 3 === 0) range.row();
+      });
+    })
+    .row()
+    .back("← Назад");
 
   private voiceSelectMenu: Menu = new Menu("voice_select", {
     autoAnswer: false,
@@ -88,20 +231,11 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
       if (!chat) return;
 
-      const voices: Voice[] = [
-        "alloy",
-        "echo",
-        "fable",
-        "nova",
-        "onyx",
-        "shimmer",
-      ];
-
-      voices.forEach((voice, i) => {
+      Object.values(VoiceName).forEach((voice, i) => {
         range.text(
-          () => `${chat.voice == voice ? "✅ " : ""}${upFirst(voice)}`,
+          () => `${chat.voice.name == voice ? "✅ " : ""}${upFirst(voice)}`,
           async (ctx) => {
-            chat.voice = voice;
+            chat.voice.name = voice;
             await chatRepo.save(chat);
 
             await ctx.answerCallbackQuery({
@@ -133,10 +267,22 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
     this.bot.use(this.voiceSettingsMenu);
 
+    this.imageSettingsMenu.register(this.imageQualityMenu);
+    this.imageSettingsMenu.register(this.imageSizeMenu);
+    this.imageSettingsMenu.register(this.imageStyleMenu);
+
+    this.bot.use(this.imageSettingsMenu);
+
     this.bot.command(
       ["image", "generate", "img", "gen", "dalle"],
       async (ctx) => await this.image(ctx)
     );
+
+    this.bot.command(
+      "img_settings",
+      async (ctx) => await this.imageSettings(ctx)
+    );
+
     this.bot.command(
       "voice_settings",
       async (ctx) => await this.voiceSettings(ctx)
@@ -294,6 +440,15 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         });
       });
   }
+  private async imageSettings(ctx: Context) {
+    await ctx.reply(
+      "<b>🖼️ Настройки генерации изображений для этого чата</b>",
+      {
+        parse_mode: "HTML",
+        reply_markup: this.imageSettingsMenu,
+      }
+    );
+  }
 
   private async voiceSettings(ctx: Context) {
     await ctx.reply("<b>🎤 Настройки озвучки текста для этого чата</b>", {
@@ -321,8 +476,8 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
     await this.openai.audio.speech
       .create({
-        model: { fast: "tts-1", high: "tts-1-hd" }[chat.quality],
-        voice: chat.voice,
+        model: { default: "tts-1", hd: "tts-1-hd" }[chat.voice.quality],
+        voice: chat.voice.name,
         input: ctx.match || ctx.message!.reply_to_message!.text!,
       })
       // .finally(async () => typing.stop() )
@@ -344,10 +499,12 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
   private async image(ctx: CommandContext<T>) {
     const userRepo = DataSource.getRepository(User);
-
     const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
 
-    if (!user) return;
+    const chatRepo = DataSource.getRepository(Chat);
+    const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
+
+    if (!user || !chat) return;
 
     const prompt = ctx.match;
     const replyMessage = ctx.message?.reply_to_message;
@@ -385,7 +542,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
                 new Date().getTime() / 1000
               ).toString()}.png`
             ),
-            model: "dall-e-3",
+            model: "dall-e-2",
             size: "1024x1024",
             response_format: "url",
           })
@@ -410,27 +567,37 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           })
           .catch(this.onError(ctx));
       }
-    } else if (prompt)
+    } else if (prompt) {
       await this.openai.images
         .generate({
           model: "dall-e-3",
-          quality: "hd",
+          // TODO: wtf?
+          quality:
+            chat.image.quality == ImageQuality.Standart ? "standard" : "hd",
           response_format: "url",
           prompt: prompt,
           n: 1,
-          size: "1024x1024",
-          style: "vivid",
+          size: chat.image.size,
+          style: chat.image.style,
         })
         .finally(() => typing.stop())
         .then(async (response) => {
-          if (response.data[0].url)
+          if (response.data[0].url) {
+            user.generations++;
+            await userRepo.save(user);
+
             await ctx.replyWithDocument(response.data[0].url, {
+              caption:
+                this?.subscriptionModule &&
+                !(await this.subscriptionModule.isActive(ctx))
+                  ? await this.subscriptionModule.generationsNotify(ctx)
+                  : undefined,
               reply_parameters: {
                 allow_sending_without_reply: false,
                 message_id: ctx.message!.message_id,
               },
             });
-          else
+          } else
             await ctx.reply(
               "Извините, но ничего не вышло, Вы можете попробовать ещё раз.",
               {
@@ -442,5 +609,6 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
             );
         })
         .catch(this.onError(ctx));
+    }
   }
 }
