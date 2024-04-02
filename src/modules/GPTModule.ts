@@ -301,7 +301,8 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
     if (!chat) return;
 
-    if (!checkHasArgs(ctx)) return;
+    if (!checkHasArgs(ctx, ctx.message?.reply_to_message?.text != undefined))
+      return;
 
     const typing = useType(ctx);
 
@@ -315,7 +316,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       .create({
         model: { fast: "tts-1", high: "tts-1-hd" }[chat.quality],
         voice: chat.voice,
-        input: ctx.match,
+        input: ctx.match || ctx.message!.reply_to_message!.text!,
       })
       // .finally(async () => typing.stop() )
       .then(async (response) => {
