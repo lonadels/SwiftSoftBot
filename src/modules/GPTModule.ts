@@ -133,12 +133,19 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
     this.bot.use(this.voiceSettingsMenu);
 
-    this.bot.command(["image", "generate", "img", "gen", "dalle"], (ctx) =>
-      this.image(ctx)
+    this.bot.command(
+      ["image", "generate", "img", "gen", "dalle"],
+      async (ctx) => await this.image(ctx)
     );
-    this.bot.command("voice_settings", (ctx) => this.voiceSettings(ctx));
+    this.bot.command(
+      "voice_settings",
+      async (ctx) => await this.voiceSettings(ctx)
+    );
 
-    this.bot.command(["speak", "voice", "tts"], (ctx) => this.voice(ctx));
+    this.bot.command(
+      ["speak", "voice", "tts"],
+      async (ctx) => await this.voice(ctx)
+    );
 
     this.bot.hears(/^((свифи|swifie)?.+)/ims, async (ctx) => {
       if (
@@ -146,7 +153,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         ctx.chat.type == "private" ||
         ctx.message?.reply_to_message?.from!.id === this.bot.botInfo.id
       )
-        this.reply(ctx, ctx.match[1]);
+        await this.reply(ctx, ctx.match[1].replace("/", "\\/"));
     });
   }
 
