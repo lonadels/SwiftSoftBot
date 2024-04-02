@@ -297,7 +297,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
   private async voice(ctx: CommandContext<T>) {
     const chatRepo = DataSource.getRepository(Chat);
-    const chat = await chatRepo.findOneBy({ telegramId: ctx.from?.id });
+    const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
 
     if (!chat) return;
 
