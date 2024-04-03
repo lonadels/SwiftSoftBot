@@ -5,7 +5,7 @@ export enum ImageQuality {
 
 export type ChatImageQuality = "standard" | "hd";
 
-export enum ImageSize {
+export enum ImageResolution {
   // Low = "256x256",
   // Medium = "512x512",
   High = "1024x1024",
@@ -18,4 +18,4 @@ export enum ImageStyle {
   Vivid = "vivid",
 }
 
-export default { ImageQuality, ImageSize, ImageStyle };
+export default { ImageQuality, ImageResolution, ImageStyle };

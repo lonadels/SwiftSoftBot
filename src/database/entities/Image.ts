@@ -1,7 +1,7 @@
 import { Column } from "typeorm";
 import {
   ImageQuality,
-  ImageSize as ImageSize,
+  ImageResolution as ImageResolution,
   ImageStyle as ImageStyle,
 } from "../ImageTypes";
 
@@ -13,10 +13,10 @@ export class Image {
   quality!: ImageQuality;
 
   @Column({
-    enum: ImageSize,
-    default: ImageSize.High,
+    enum: ImageResolution,
+    default: ImageResolution.High,
   })
-  size!: ImageSize;
+  resolution!: ImageResolution;
 
   @Column({
     enum: ImageStyle,

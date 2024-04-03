@@ -17,7 +17,7 @@ import { declOfNum, upFirst } from "../utils/strings";
 import {
   ChatImageQuality,
   ImageQuality,
-  ImageSize,
+  ImageResolution,
   ImageStyle as ImageStyle,
 } from "../database/ImageTypes";
 
@@ -48,7 +48,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           "image_quality"
         )
         .row()
-        .submenu(() => `Размер: ${chat.image.size}`, "image_size")
+        .submenu(() => `Размер: ${chat.image.resolution}`, "image_resolution")
         .submenu(
           () =>
             `Стиль: ${
@@ -193,7 +193,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     await chatRepo.save(chat);
   }
 
-  private imageSizeMenu: Menu = new Menu("image_size", {
+  private imageResolutionMenu: Menu = new Menu("image_resolution", {
     autoAnswer: false,
   })
     .dynamic(async (ctx, range) => {
@@ -202,15 +202,23 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
       if (!chat) return;
 
-      Object.values(ImageSize).forEach((size, i) => {
+      const titles: { [key in ImageResolution]: string } = {
+        "1792x1024": "Горизонтальный",
+        "1024x1024": "Квадратный",
+        "1024x1792": "Вертикальный",
+      };
+
+      Object.values(ImageResolution).forEach((resolution, i) => {
         range.text(
-          () => `${chat.image.size == size ? "✅ " : ""}${size}`,
+          () =>
+            (chat.image.resolution == resolution ? "✅ " : "") +
+            titles[resolution],
           async (ctx) => {
-            chat.image.size = size;
+            chat.image.resolution = resolution;
             await chatRepo.save(chat);
 
             await ctx.answerCallbackQuery({
-              text: `Размер "${size}" установлен`,
+              text: `Размер "${titles[resolution]}" установлен`,
             });
 
             ctx.menu.update();
@@ -268,7 +276,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     this.bot.use(this.voiceSettingsMenu);
 
     this.imageSettingsMenu.register(this.imageQualityMenu);
-    this.imageSettingsMenu.register(this.imageSizeMenu);
+    this.imageSettingsMenu.register(this.imageResolutionMenu);
     this.imageSettingsMenu.register(this.imageStyleMenu);
 
     this.bot.use(this.imageSettingsMenu);
@@ -525,7 +533,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
       const photo = ctx.message?.photo || replyMessage?.photo;
 
-      const fileInfo = await ctx.api.getFile(photo![0].file_id);
+      const fileInfo = await ctx.api.getFile(photo![photo!.length - 1].file_id);
 
       if (fileInfo.file_path) {
         const url = `https://api.telegram.org/file/bot${process.env
@@ -577,7 +585,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           response_format: "url",
           prompt: prompt,
           n: 1,
-          size: chat.image.size,
+          size: chat.image.resolution,
           style: chat.image.style,
         })
         .finally(() => typing.stop())
