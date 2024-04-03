@@ -517,7 +517,12 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     const prompt = ctx.match;
     const replyMessage = ctx.message?.reply_to_message;
 
-    if (!checkHasArgs(ctx) && !replyMessage?.photo && !ctx.message?.photo)
+    if (
+      !checkHasArgs(
+        ctx,
+        replyMessage?.photo != undefined || ctx.message?.photo != undefined
+      )
+    )
       return;
 
     if (
