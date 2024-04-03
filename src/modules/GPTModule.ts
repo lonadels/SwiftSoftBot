@@ -311,8 +311,6 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     });
   }
 
-  initModule(): void {}
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private onError(ctx: Context): (e: any) => Promise<void> {
     return async (e) => {
