@@ -1,12 +1,12 @@
 import { Column } from "typeorm";
-import { VoiceName, VoiceQuality } from "../VoiceTypes";
+import { VoiceModel, VoiceQuality } from "../VoiceTypes";
 
 export class Voice {
   @Column({
-    enum: VoiceName,
-    default: VoiceName.Nova,
+    enum: VoiceModel,
+    default: VoiceModel.Nova,
   })
-  name!: VoiceName;
+  name!: VoiceModel;
 
   @Column({
     enum: VoiceQuality,

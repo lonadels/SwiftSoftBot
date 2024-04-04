@@ -11,7 +11,7 @@ import { createReadStreamFromBuffer } from "../utils/createReadStreamFromBuffer"
 import { SubscriptionModule } from "./SubscriptionModule";
 import { BotCommand } from "grammy/types";
 import { Menu } from "@grammyjs/menu";
-import { VoiceQuality, VoiceName } from "../database/VoiceTypes";
+import { VoiceQuality, VoiceModel } from "../database/VoiceTypes";
 import Chat from "../database/entities/Chat";
 import { declOfNum, upFirst } from "../utils/strings";
 import {
@@ -20,6 +20,9 @@ import {
   ImageResolution,
   ImageStyle as ImageStyle,
 } from "../database/ImageTypes";
+import { Image } from "../database/entities/Image";
+import { Photo } from "../database/entities/Photo";
+import Message from "../database/entities/Message";
 
 export class GPTModule<T extends Context = Context> extends Module<T> {
   private readonly openai: OpenAI;
@@ -239,7 +242,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
       if (!chat) return;
 
-      Object.values(VoiceName).forEach((voice, i) => {
+      Object.values(VoiceModel).forEach((voice, i) => {
         range.text(
           () => `${chat.voice.name == voice ? "✅ " : ""}${upFirst(voice)}`,
           async (ctx) => {
@@ -309,6 +312,82 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       )
         await this.reply(ctx, ctx.match[1].replace("/", "\\/"));
     });
+
+    //this.tune();
+    //this.tuneJobs();
+    //this.testModel("нарисуй мне картинку слона");
+  }
+
+  async testModel(prompt: string) {
+    const completion = await this.openai.completions.create({
+      prompt,
+      model: "ft:davinci-002:personal::99weSthe",
+    });
+    console.log(`< ${prompt}`);
+    console.log(`> ${completion.choices[0].text}`);
+  }
+
+  async tuneJobs() {
+    const jobs = await this.openai.fineTuning.jobs.list();
+
+    for await (const job of jobs) {
+      const tune = await this.openai.fineTuning.jobs.retrieve(job.id);
+
+      console.log(
+        `[${new Date(tune.created_at * 1000).toLocaleDateString()}] ${
+          tune.id
+        } (${tune.status})`
+      );
+
+      if (tune.status != "succeeded") {
+        const events = await this.openai.fineTuning.jobs.listEvents(tune.id);
+        for await (const event of events) {
+          console.log(`-- ${event.message}`);
+        }
+      } else {
+        console.log(`# ${tune.fine_tuned_model}`);
+      }
+    }
+  }
+
+  async tune() {
+    // Генерируем массив объектов для image_request из файла image_request.txt
+    const imageRequests = this.generateDataArray(
+      "models/image_request.txt",
+      "image_request"
+    );
+    // Генерируем массив объектов для non_image_request из файла non_image_request.txt
+    const nonImageRequests = this.generateDataArray(
+      "models/non_image_request.txt",
+      "non_image_request"
+    );
+
+    // Объединяем оба массива
+    const dataArray = [...imageRequests, ...nonImageRequests];
+
+    // Создание обучающей сессии для fine-tuning
+    try {
+      // Преобразуем массив объектов в строку JSONL
+      const trainingData = dataArray
+        .map((obj) => JSON.stringify(obj))
+        .join("\n");
+
+      fs.writeFileSync("models/tune.jsonl", trainingData);
+
+      // Загрузка данных для fine-tuning
+      const fileUpload = await this.openai.files.create({
+        purpose: "fine-tune",
+        file: fs.createReadStream("models/tune.jsonl"),
+      });
+      // Создание обучающей сессии с загруженным файлом
+      const fineTune = await this.openai.fineTuning.jobs.create({
+        model: "davinci-002",
+        training_file: fileUpload.id,
+      });
+      console.log(fineTune);
+    } catch (err) {
+      console.error(`Ошибка создания обучающей сессии для fine-tuning: ${err}`);
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -329,19 +408,71 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     };
   }
 
+  // Функция для чтения данных из текстового файла и преобразования в массив объектов
+  generateDataArray(
+    filename: string,
+    completionType: string
+  ): { prompt: string; completion: string }[] {
+    try {
+      // Читаем данные из файла и разбиваем их на строки
+      const data = fs.readFileSync(filename, "utf8").trim().split("\n");
+      // Создаем массив объектов на основе данных из файла
+      const dataArray = data.map((prompt) => ({
+        prompt,
+        completion: completionType,
+      }));
+      return dataArray;
+    } catch (err) {
+      console.error(`Ошибка чтения файла: ${err}`);
+      return [];
+    }
+  }
+
   private async reply(ctx: T, text: string) {
     const typing = useType(ctx);
 
-    const reply: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+    const photoRepo = DataSource.getRepository(Photo);
+    const messageRepo = DataSource.getRepository(Message);
+    const userRepo = DataSource.getRepository(User);
+    const chatRepo = DataSource.getRepository(Chat);
 
-    if (ctx.message?.reply_to_message?.text)
-      reply.push({
-        role:
-          ctx.message?.reply_to_message.from!.id == this.bot.botInfo.id
-            ? "assistant"
-            : "user",
-        content: ctx.message?.reply_to_message.text,
-      });
+    const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
+    const user = await userRepo.findOneBy({ telegramId: ctx.chat?.id });
+
+    if (!chat || !user) return typing.stop();
+
+    const history: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+
+    const messages = (await messageRepo.find({ where: { chat: chat } })).sort(
+      (a, b) => a.at.getTime() - b.at.getTime()
+    );
+
+    messages.forEach((message) => {
+      const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
+      if (message.photos)
+        message.photos.forEach((photo) => {
+          const base64text = photo.buffer.toString("base64");
+          images.push({
+            type: "image_url",
+            image_url: {
+              url: `data:image/jpeg;base64,${base64text}`,
+              detail: "high",
+            },
+          });
+        });
+      if (message.from)
+        history.push({
+          role: "user",
+          content: [...images, { type: "text", text: message.content }],
+        });
+      else
+        history.push({
+          role: "assistant",
+          content: message.content,
+        });
+
+      console.log(message);
+    });
 
     const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
@@ -370,9 +501,11 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       }
     }
 
+    let photo: Photo | undefined;
+
     if (ctx.message?.reply_to_message?.photo) {
-      for (const photo of ctx.message.reply_to_message.photo) {
-        const fileInfo = await ctx.api.getFile(photo.file_id);
+      for (const messagePhoto of ctx.message.reply_to_message.photo) {
+        const fileInfo = await ctx.api.getFile(messagePhoto.file_id);
 
         if (fileInfo.file_path) {
           const url = `https://api.telegram.org/file/bot${process.env
@@ -381,6 +514,9 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           const response = await fetch(url);
           const buffer = Buffer.from(await response.arrayBuffer());
           const base64text = buffer.toString("base64");
+
+          photo = new Photo();
+          photo.buffer = buffer;
 
           // TODO: load all images
           images.splice(0);
@@ -395,6 +531,13 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       }
     }
 
+    const content =
+      (ctx.message?.quote?.text || ctx.message?.reply_to_message?.text
+        ? "<quote>\n" +
+          (ctx.message?.quote?.text || ctx.message?.reply_to_message?.text) +
+          "\n</quote>\n\n"
+        : "") + text;
+
     this.openai.chat.completions
       .create({
         messages: [
@@ -402,22 +545,15 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
             role: "system",
             content: `You are a helpful assistant.\nYou name is \n"""\nСвифи\n"""\nor\n"""Swifie"""\n\nYou is a woman.\nDon't talk about yourself in the third person.\nName of user is \n\n"""\n${ctx.from?.first_name}\n""".\nYour main language is Russian.\nDon't use markdown formatting.`,
           },
-          ...reply,
+          ...history,
           {
             role: "user",
             content: [
+              ...images,
               {
                 type: "text",
-                text:
-                  (ctx.message?.quote?.text ||
-                  ctx.message?.reply_to_message?.text
-                    ? "<quote>\n" +
-                      (ctx.message?.quote?.text ||
-                        ctx.message?.reply_to_message?.text) +
-                      "\n</quote>\n\n"
-                    : "") + text,
+                text: content,
               },
-              ...images,
             ],
           },
         ],
@@ -426,15 +562,35 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       })
       .finally(() => typing.stop())
       .then(async (completion) => {
-        await ctx.reply(
-          completion.choices[0].message?.content || "Ничего не получилось :(",
-          {
-            reply_parameters: {
-              allow_sending_without_reply: false,
-              message_id: ctx.message!.message_id,
-            },
-          }
-        );
+        const answer = completion.choices[0].message.content;
+
+        if (!answer) return;
+
+        const msg = await ctx.reply(answer, {
+          reply_parameters: {
+            allow_sending_without_reply: false,
+            message_id: ctx.message!.message_id,
+          },
+        });
+
+        const userMessage = new Message();
+        userMessage.chat = chat;
+        userMessage.from = user;
+        userMessage.telegramId = ctx.message?.message_id;
+        userMessage.content = content;
+
+        if (photo) {
+          userMessage.photos?.push(photo);
+          await photoRepo.save(photo);
+        }
+
+        const gptMessage = new Message();
+        gptMessage.chat = chat;
+        gptMessage.telegramId = msg.message_id;
+        gptMessage.content = answer;
+
+        await messageRepo.save(userMessage);
+        await messageRepo.save(gptMessage);
       })
       .catch(async (e) => {
         await ctx.reply("⚠️ Возникла проблема\n\n```" + e.toString() + "```", {
@@ -536,7 +692,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
       const photo = ctx.message?.photo || replyMessage?.photo;
 
-      const fileInfo = await ctx.api.getFile(photo![photo!.length - 1].file_id);
+      const fileInfo = await ctx.api.getFile(photo!.last()!.file_id);
 
       if (fileInfo.file_path) {
         const url = `https://api.telegram.org/file/bot${process.env

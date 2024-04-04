@@ -1,4 +1,4 @@
-export enum VoiceName {
+export enum VoiceModel {
   Alloy = "alloy",
   Echo = "echo",
   Fable = "fable",
@@ -11,4 +11,4 @@ export enum VoiceQuality {
   HD = "hd",
 }
 
-export default { VoiceName, VoiceQuality };
+export default { VoiceModel, VoiceQuality };

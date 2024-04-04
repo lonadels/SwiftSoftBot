@@ -101,7 +101,9 @@
     // "skipLibCheck": true /* Skip type checking all .d.ts files. */
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "src/extensions/array.ts",
+    "extensions/arrayExtension.ts"
   ],
   "exclude": [
     "node_modules",

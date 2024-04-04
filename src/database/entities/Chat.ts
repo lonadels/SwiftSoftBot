@@ -8,9 +8,10 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Subscribe } from "./Subscribe";
-import { VoiceName, VoiceQuality } from "../VoiceTypes";
+import { VoiceModel, VoiceQuality } from "../VoiceTypes";
 import { Voice } from "./Voice";
 import { Image } from "./Image";
+import Message from "./Message";
 @Entity()
 export default class Chat {
   @PrimaryGeneratedColumn({ type: "bigint" })
@@ -24,4 +25,7 @@ export default class Chat {
 
   @Column(() => Image)
   image!: Image;
+
+  @OneToMany(() => Message, (message) => message.from)
+  messages?: Message[];
 }

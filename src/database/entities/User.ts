@@ -8,7 +8,8 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Subscribe } from "./Subscribe";
-import { VoiceName } from "../VoiceTypes";
+import { VoiceModel } from "../VoiceTypes";
+import Message from "./Message";
 
 @Entity()
 export default class User {
@@ -23,4 +24,7 @@ export default class User {
 
   @Column({ default: 0 })
   generations!: number;
+
+  @OneToMany(() => Message, (message) => message.from)
+  messages?: Message[];
 }

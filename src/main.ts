@@ -9,6 +9,8 @@ import DataSource from "./database/DataSource";
 
 import { initBot } from "./initBot";
 
+import "./extensions/array";
+
 function main() {
   console.log("Initializing database...");
   DataSource.initialize().then(async () => {
@@ -19,6 +21,9 @@ function main() {
       console.error(e);
     }
   });
+  const arr = [1, 2];
+  arr.last();
+  arr.push();
 }
 
 main();
