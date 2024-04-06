@@ -445,14 +445,20 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
     const history: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
-    const messages = (await messageRepo.find({ where: { chat: chat } })).sort(
-      (a, b) => a.at.getTime() - b.at.getTime()
-    );
+    const messages = (
+      await messageRepo.find({
+        where: { chat: chat },
+        relations: { photos: true },
+      })
+    ).sort((a, b) => a.at.getTime() - b.at.getTime());
 
-    // if (ctx.chat?.type === "private")
+    let historyHasPhotos: boolean = false;
+
     messages.forEach((message) => {
       const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
-      if (message.photos)
+
+      if (message.photos) {
+        historyHasPhotos = true;
         message.photos.forEach((photo) => {
           const base64text = photo.buffer.toString("base64");
           images.push({
@@ -463,6 +469,8 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
             },
           });
         });
+      }
+
       if (message.from) {
         history.push({
           role: "system",
@@ -481,10 +489,11 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     });
 
     const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
+    let photo: Photo | undefined;
 
     if (ctx.message?.photo) {
-      for (const photo of ctx.message.photo) {
-        const fileInfo = await ctx.api.getFile(photo.file_id);
+      for (const messagePhoto of ctx.message.photo) {
+        const fileInfo = await ctx.api.getFile(messagePhoto.file_id);
 
         if (fileInfo.file_path) {
           const url = `https://api.telegram.org/file/bot${process.env
@@ -493,6 +502,9 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           const response = await fetch(url);
           const buffer = Buffer.from(await response.arrayBuffer());
           const base64text = buffer.toString("base64");
+
+          photo = new Photo();
+          photo.buffer = buffer;
 
           // TODO: load all images
           images.splice(0);
@@ -507,8 +519,6 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       }
     }
 
-    let photo: Photo | undefined;
-
     if (ctx.message?.reply_to_message?.photo) {
       for (const messagePhoto of ctx.message.reply_to_message.photo) {
         const fileInfo = await ctx.api.getFile(messagePhoto.file_id);
@@ -520,9 +530,6 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           const response = await fetch(url);
           const buffer = Buffer.from(await response.arrayBuffer());
           const base64text = buffer.toString("base64");
-
-          photo = new Photo();
-          photo.buffer = buffer;
 
           // TODO: load all images
           images.splice(0);
@@ -577,7 +584,9 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           },
         ],
         model:
-          images.length > 0 ? "gpt-4-vision-preview" : "gpt-4-0125-preview",
+          images.length > 0 || historyHasPhotos
+            ? "gpt-4-vision-preview"
+            : "gpt-4-0125-preview",
       })
       .finally(() => typing.stop())
       .then(async (completion) => {
@@ -599,7 +608,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         userMessage.content = content;
 
         if (photo) {
-          userMessage.photos?.push(photo);
+          userMessage.photos = [...(userMessage?.photos || []), photo];
           await photoRepo.save(photo);
         }
 
