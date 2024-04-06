@@ -10,6 +10,7 @@ import {
 import { Subscribe } from "./Subscribe";
 import { VoiceModel } from "../VoiceTypes";
 import Message from "./Message";
+import { Role } from "../Role";
 
 @Entity()
 export default class User {
@@ -30,4 +31,7 @@ export default class User {
 
   @Column()
   name!: string;
+
+  @Column({ enum: Role, default: Role.User })
+  role!: Role;
 }

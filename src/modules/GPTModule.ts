@@ -310,7 +310,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         ctx.chat.type == "private" ||
         ctx.message?.reply_to_message?.from!.id === this.bot.botInfo.id
       )
-        await this.reply(ctx);
+        this.reply(ctx);
     });
 
     //this.tune();

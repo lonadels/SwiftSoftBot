@@ -6,6 +6,7 @@ import User from "../database/entities/User";
 import Month from "../utils/month";
 import { daysDiff, declOfNum } from "../utils/strings";
 import { BotCommand } from "grammy/types";
+import { Role } from "../database/Role";
 
 export class SubscriptionModule<T extends Context = Context> extends Module<T> {
   public readonly maxLimit: number = 5;
@@ -90,7 +91,9 @@ export class SubscriptionModule<T extends Context = Context> extends Module<T> {
     if (!user) return false;
 
     return (
-      (user.subscribe.expires && user.subscribe.expires >= new Date()) || false
+      user.role > Role.Admin ||
+      (user.subscribe.expires && user.subscribe.expires >= new Date()) ||
+      false
     );
   }
 

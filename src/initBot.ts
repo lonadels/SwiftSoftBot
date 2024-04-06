@@ -12,6 +12,7 @@ import { GPTModule } from "./modules/GPTModule";
 import { MenuFlavor } from "@grammyjs/menu";
 import { JokeModule } from "./modules/JokeModule";
 import { GreetingModule } from "./modules/GreetingModule";
+import { DashboardModule } from "./modules/DashboardModule";
 
 type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
 
@@ -31,14 +32,17 @@ export function initBot() {
   bot.use(checkUserExistsOrCreate);
   bot.use(checkChatExistsOrCreate);
 
+  const dashboard = new DashboardModule(bot);
   const greeting = new GreetingModule(bot);
   const joke = new JokeModule(bot);
   const sub = new SubscriptionModule(bot);
+
   const gpt = new GPTModule(bot, {
     subscriptionModule: sub,
   });
 
   bot.api.setMyCommands([
+    ...dashboard.commands,
     ...greeting.commands,
     ...joke.commands,
     ...sub.commands,
