@@ -1,4 +1,4 @@
-import { Bot, CommandContext, Context, InputFile } from "grammy";
+import { Bot, CommandContext, Context, HearsContext, InputFile } from "grammy";
 import { Module } from "./Module";
 import OpenAI from "openai";
 import { useType } from "../hooks/useType";
@@ -310,7 +310,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         ctx.chat.type == "private" ||
         ctx.message?.reply_to_message?.from!.id === this.bot.botInfo.id
       )
-        await this.reply(ctx, ctx.match[1].replace("/", "\\/"));
+        await this.reply(ctx);
     });
 
     //this.tune();
@@ -428,7 +428,9 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     }
   }
 
-  private async reply(ctx: T, text: string) {
+  private async reply(ctx: HearsContext<T>) {
+    const text: string = ctx.match[1].replace("/", "\\/");
+
     const typing = useType(ctx);
 
     const photoRepo = DataSource.getRepository(Photo);
@@ -437,7 +439,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     const chatRepo = DataSource.getRepository(Chat);
 
     const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
-    const user = await userRepo.findOneBy({ telegramId: ctx.chat?.id });
+    const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
 
     if (!chat || !user) return typing.stop();
 
@@ -447,6 +449,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       (a, b) => a.at.getTime() - b.at.getTime()
     );
 
+    // if (ctx.chat?.type === "private")
     messages.forEach((message) => {
       const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
       if (message.photos)
@@ -460,18 +463,21 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
             },
           });
         });
-      if (message.from)
+      if (message.from) {
+        history.push({
+          role: "system",
+          content: `(ID ${user.telegramId}) ${user.name}:`,
+        });
         history.push({
           role: "user",
+          name: message.from.telegramId?.toString(),
           content: [...images, { type: "text", text: message.content }],
         });
-      else
+      } else
         history.push({
           role: "assistant",
           content: message.content,
         });
-
-      console.log(message);
     });
 
     const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
@@ -538,16 +544,29 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           "\n</quote>\n\n"
         : "") + text;
 
+    const groupInfo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
+      ctx.chat.type === "group" || ctx.chat.type === "supergroup"
+        ? [
+            {
+              role: "system",
+              content: `You are in a multi-user online chat in a telegram called """${ctx.chat.title}""". System messages indicate the user ID and the name before the message of each user.`,
+            },
+          ]
+        : [];
+
     this.openai.chat.completions
       .create({
         messages: [
           {
             role: "system",
-            content: `You are a helpful assistant.\nYou name is \n"""\nСвифи\n"""\nor\n"""Swifie"""\n\nYou is a woman.\nDon't talk about yourself in the third person.\nName of user is \n\n"""\n${ctx.from?.first_name}\n""".\nYour main language is Russian.\nDon't use markdown formatting.`,
+            content: `You are a helpful assistant.\nYou name is \n"""\nСвифи\n"""\nor\n"""Swifie"""\n\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nDon't use markdown formatting.`,
           },
+          ...groupInfo,
           ...history,
+          { role: "system", content: `(ID ${user.telegramId}) ${user.name}:` },
           {
             role: "user",
+            name: user.telegramId?.toString(),
             content: [
               ...images,
               {

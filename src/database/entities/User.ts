@@ -27,4 +27,7 @@ export default class User {
 
   @OneToMany(() => Message, (message) => message.from)
   messages?: Message[];
+
+  @Column()
+  name!: string;
 }
