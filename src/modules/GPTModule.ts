@@ -23,6 +23,8 @@ import {
 import { Image } from "../database/entities/Image";
 import { Photo } from "../database/entities/Photo";
 import Message from "../database/entities/Message";
+import { MoreThanOrEqual } from "typeorm";
+import { Role } from "../database/Role";
 
 export class GPTModule<T extends Context = Context> extends Module<T> {
   private readonly openai: OpenAI;
@@ -393,10 +395,25 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private onError(ctx: Context): (e: any) => Promise<void> {
     return async (e) => {
+      const userRepo = DataSource.getRepository(User);
+      const developers = await userRepo.findBy({
+        role: MoreThanOrEqual(Role.Developer),
+      });
+      developers.forEach((developer) =>
+        ctx.api.sendMessage(
+          developer.telegramId,
+          `<pre language="error">${e.toString()}</pre>\n\nContent: <blockquote>${
+            ctx.message?.text
+          }</blockquote>\n\nHasPhotos: ${
+            ctx.message?.photo ? `<pre>${ctx.message?.photo}</pre>` : ``
+          }`,
+          {
+            parse_mode: "HTML",
+          }
+        )
+      );
       await ctx.reply(
-        '<b>⚠️ Возникла проблема</b>\n<pre language="error">' +
-          e.toString() +
-          "</pre>",
+        "<b>К сожалению, во время запроса произошла ошибка.</b>\nИнформация об этом уже передана разработчикам.",
         {
           parse_mode: "HTML",
           reply_parameters: {
@@ -452,20 +469,18 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       })
     ).sort((a, b) => a.at.getTime() - b.at.getTime());
 
-    let historyHasPhotos: boolean = false;
+    const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
     messages.forEach((message) => {
       const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
-
       if (message.photos) {
-        historyHasPhotos = true;
         message.photos.forEach((photo) => {
           const base64text = photo.buffer.toString("base64");
           images.push({
             type: "image_url",
             image_url: {
               url: `data:image/jpeg;base64,${base64text}`,
-              detail: "high",
+              detail: "auto",
             },
           });
         });
@@ -488,8 +503,71 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         });
     });
 
-    const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
     let photo: Photo | undefined;
+
+    console.log(ctx.message?.document?.mime_type);
+
+    const mimeTypes = ["image/png", "image/jpeg"];
+
+    if (
+      ctx.message?.reply_to_message?.document &&
+      mimeTypes.includes(ctx.message.reply_to_message.document.mime_type!)
+    ) {
+      const fileInfo = await ctx.api.getFile(
+        ctx.message?.reply_to_message?.document.file_id
+      );
+
+      if (fileInfo.file_path) {
+        const url = `https://api.telegram.org/file/bot${process.env
+          .BOT_TOKEN!}/${fileInfo.file_path}`;
+
+        const response = await fetch(url);
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const base64text = buffer.toString("base64");
+
+        photo = new Photo();
+        photo.buffer = buffer;
+
+        // TODO: load all images
+        images.splice(0);
+        images.push({
+          type: "image_url",
+          image_url: {
+            url: `data:image/jpeg;base64,${base64text}`,
+            detail: "auto",
+          },
+        });
+      }
+    }
+
+    if (
+      ctx.message?.document &&
+      mimeTypes.includes(ctx.message.document.mime_type!)
+    ) {
+      const fileInfo = await ctx.api.getFile(ctx.message?.document.file_id);
+
+      if (fileInfo.file_path) {
+        const url = `https://api.telegram.org/file/bot${process.env
+          .BOT_TOKEN!}/${fileInfo.file_path}`;
+
+        const response = await fetch(url);
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const base64text = buffer.toString("base64");
+
+        photo = new Photo();
+        photo.buffer = buffer;
+
+        // TODO: load all images
+        images.splice(0);
+        images.push({
+          type: "image_url",
+          image_url: {
+            url: `data:image/jpeg;base64,${base64text}`,
+            detail: "auto",
+          },
+        });
+      }
+    }
 
     if (ctx.message?.photo) {
       for (const messagePhoto of ctx.message.photo) {
@@ -512,7 +590,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
             type: "image_url",
             image_url: {
               url: `data:image/jpeg;base64,${base64text}`,
-              detail: "high",
+              detail: "auto",
             },
           });
         }
@@ -537,7 +615,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
             type: "image_url",
             image_url: {
               url: `data:image/jpeg;base64,${base64text}`,
-              detail: "high",
+              detail: "auto",
             },
           });
         }
@@ -584,7 +662,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           },
         ],
         model:
-          images.length > 0 || historyHasPhotos
+          images.length > 0 || messages.find((m) => m.photos)
             ? "gpt-4-vision-preview"
             : "gpt-4-0125-preview",
       })

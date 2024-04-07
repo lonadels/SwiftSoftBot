@@ -18,7 +18,7 @@ export default class User {
   id!: number;
 
   @Column({ type: "bigint", nullable: true, unique: true })
-  telegramId?: number;
+  telegramId!: number;
 
   @Column(() => Subscribe)
   subscribe!: Subscribe;

@@ -13,7 +13,7 @@ export async function checkUserExistsOrCreate(
     .findOneByOrFail({ telegramId: ctx.from?.id })
     .catch(async () => {
       const user = new User();
-      user.telegramId = ctx.from?.id;
+      user.telegramId = ctx.from!.id;
       user.name = `${ctx.from?.first_name}`.trim();
       await userRepo.save(user);
     });

@@ -13,6 +13,7 @@ import { MenuFlavor } from "@grammyjs/menu";
 import { JokeModule } from "./modules/JokeModule";
 import { GreetingModule } from "./modules/GreetingModule";
 import { DashboardModule } from "./modules/DashboardModule";
+import { limit } from "@grammyjs/ratelimiter";
 
 type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
 
@@ -22,6 +23,17 @@ export function initBot() {
   bot.api.setMyDescription("Бот SwiftSoft");
 
   bot.api.config.use(autoRetry());
+
+  bot.use(
+    limit({
+      timeFrame: 2000,
+      limit: 3,
+      async onLimitExceeded(ctx, next) {
+        await new Promise((r) => setTimeout(r, 2000));
+        next();
+      },
+    })
+  );
 
   bot.use(hydrate());
   bot.use(hydrateReply);

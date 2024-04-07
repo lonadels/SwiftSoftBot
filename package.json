@@ -36,6 +36,7 @@
     "@grammyjs/hydrate": "^1.4.1",
     "@grammyjs/menu": "^1.2.1",
     "@grammyjs/parse-mode": "^1.9.0",
+    "@grammyjs/ratelimiter": "^1.2.0",
     "@grammyjs/router": "^2.0.0",
     "@telegraf/entity": "^0.5.0",
     "@types/cors": "^2.8.17",
