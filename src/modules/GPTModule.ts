@@ -25,6 +25,8 @@ import { Photo } from "../database/entities/Photo";
 import Message from "../database/entities/Message";
 import { MoreThanOrEqual } from "typeorm";
 import { Role } from "../database/Role";
+import { Marked } from "@ts-stack/markdown";
+import markdownit from "markdown-it";
 
 export class GPTModule<T extends Context = Context> extends Module<T> {
   private readonly openai: OpenAI;
@@ -35,6 +37,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     { command: "voice_settings", description: "Настройки озвучки" },
     { command: "img", description: "Сгенерировать изображение" },
     { command: "img_settings", description: "Настройки генерации изображений" },
+    { command: "clear", description: "Очистить сессию" },
   ];
 
   private imageSettingsMenu: Menu = new Menu("image_settings").dynamic(
@@ -301,6 +304,8 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       async (ctx) => await this.voiceSettings(ctx)
     );
 
+    this.bot.command("clear", async (ctx) => await this.clear(ctx));
+
     this.bot.command(
       ["speak", "voice", "tts"],
       async (ctx) => await this.voice(ctx)
@@ -319,6 +324,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     //this.tuneJobs();
     //this.testModel("нарисуй мне картинку слона");
   }
+  async clear(ctx: CommandContext<T>): Promise<void> {}
 
   async testModel(prompt: string) {
     const completion = await this.openai.completions.create({
@@ -505,8 +511,6 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
     let photo: Photo | undefined;
 
-    console.log(ctx.message?.document?.mime_type);
-
     const mimeTypes = ["image/png", "image/jpeg"];
 
     if (
@@ -629,7 +633,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           "\n</quote>\n\n"
         : "") + text;
 
-    const groupInfo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
+    const chatInfo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
       ctx.chat.type === "group" || ctx.chat.type === "supergroup"
         ? [
             {
@@ -637,16 +641,21 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
               content: `You are in a multi-user online chat in a telegram called """${ctx.chat.title}""". System messages indicate the user ID and the name before the message of each user.`,
             },
           ]
-        : [];
+        : [
+            {
+              role: "system",
+              content: `You are in a private chat in a telegram with user """${ctx.from?.first_name}""". System messages indicate the user ID and the name before the message of each user.`,
+            },
+          ];
 
     this.openai.chat.completions
       .create({
         messages: [
           {
             role: "system",
-            content: `You are a helpful assistant.\nYou name is \n"""\nСвифи\n"""\nor\n"""Swifie"""\n\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nDon't use markdown formatting.`,
+            content: `You are a helpful assistant.\nYou name is \n"""\nСвифи\n"""\nor\n"""Swifie"""\n\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nDon't use markdown text formatting.`,
           },
-          ...groupInfo,
+          ...chatInfo,
           ...history,
           { role: "system", content: `(ID ${user.telegramId}) ${user.name}:` },
           {
@@ -662,7 +671,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           },
         ],
         model:
-          images.length > 0 || messages.find((m) => m.photos)
+          images.length > 0 /* || messages.find((m) => m.photos) */
             ? "gpt-4-vision-preview"
             : "gpt-4-0125-preview",
       })
@@ -672,6 +681,33 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
 
         if (!answer) return;
 
+        /* const md = markdownit().disable(["list", "heading"]);
+        const text = md.render(answer);
+
+        try {
+          msg = await ctx.reply(
+            text
+              .replace("<p>", "\r")
+              .replace("</p>", "\r")
+              .replace("<h1>", "\r")
+              .replace("</h1>", "\r"),
+            {
+              parse_mode: "HTML",
+              reply_parameters: {
+                allow_sending_without_reply: false,
+                message_id: ctx.message!.message_id,
+              },
+            }
+          );
+        } catch (e) {
+          console.log(e);
+          msg = await ctx.reply(answer, {
+            reply_parameters: {
+              allow_sending_without_reply: false,
+              message_id: ctx.message!.message_id,
+            },
+          });
+        } */
         const msg = await ctx.reply(answer, {
           reply_parameters: {
             allow_sending_without_reply: false,
@@ -698,15 +734,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         await messageRepo.save(userMessage);
         await messageRepo.save(gptMessage);
       })
-      .catch(async (e) => {
-        await ctx.reply("⚠️ Возникла проблема\n\n```" + e.toString() + "```", {
-          parse_mode: "MarkdownV2",
-          reply_parameters: {
-            allow_sending_without_reply: false,
-            message_id: ctx.message!.message_id,
-          },
-        });
-      });
+      .catch(this.onError(ctx));
   }
   private async imageSettings(ctx: Context) {
     await ctx.reply(
