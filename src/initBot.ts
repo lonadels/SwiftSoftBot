@@ -14,6 +14,7 @@ import { JokeModule } from "./modules/JokeModule";
 import { GreetingModule } from "./modules/GreetingModule";
 import { DashboardModule } from "./modules/DashboardModule";
 import { limit } from "@grammyjs/ratelimiter";
+import { GeminiModule } from "./modules/GeminiModule";
 
 type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
 
@@ -44,21 +45,23 @@ export function initBot() {
   bot.use(checkUserExistsOrCreate);
   bot.use(checkChatExistsOrCreate);
 
+  const gemini = new GeminiModule(bot);
   const dashboard = new DashboardModule(bot);
   const greeting = new GreetingModule(bot);
   const joke = new JokeModule(bot);
-  const sub = new SubscriptionModule(bot);
+  /* const sub = new SubscriptionModule(bot);
 
   const gpt = new GPTModule(bot, {
     subscriptionModule: sub,
-  });
+  }); */
 
   bot.api.setMyCommands([
+    ...gemini.commands,
     ...dashboard.commands,
     ...greeting.commands,
     ...joke.commands,
-    ...sub.commands,
-    ...gpt.commands,
+    //...sub.commands,
+    //...gpt.commands,
   ]);
 
   bot.catch(errorHandler);
