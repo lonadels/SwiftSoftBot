@@ -25,8 +25,6 @@ import { Photo } from "../database/entities/Photo";
 import Message from "../database/entities/Message";
 import { MoreThanOrEqual } from "typeorm";
 import { Role } from "../database/Role";
-import { Marked } from "@ts-stack/markdown";
-import markdownit from "markdown-it";
 
 export class GPTModule<T extends Context = Context> extends Module<T> {
   private readonly openai: OpenAI;
