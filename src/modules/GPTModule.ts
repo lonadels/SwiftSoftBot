@@ -406,11 +406,11 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       developers.forEach((developer) =>
         ctx.api.sendMessage(
           developer.telegramId,
-          `<pre language="error">${e.toString()}</pre>\n\nContent: <blockquote>${
+          `<pre language="error">${e.toString()}</pre>\n\n${
             ctx.message?.text
-          }</blockquote>\n\nHasPhotos: ${
-            ctx.message?.photo ? `<pre>${ctx.message?.photo}</pre>` : ``
-          }`,
+              ? `Content: <blockquote>${ctx.message.text}</blockquote>\n\n`
+              : ``
+          }HasPhotos: ${ctx.message?.photo != null}`,
           {
             parse_mode: "HTML",
           }
@@ -476,7 +476,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
     messages.forEach((message) => {
-      const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
+      /* const images: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
       if (message.photos) {
         message.photos.forEach((photo) => {
           const base64text = photo.buffer.toString("base64");
@@ -488,7 +488,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
             },
           });
         });
-      }
+      } */
 
       if (message.from) {
         history.push({
@@ -498,7 +498,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
         history.push({
           role: "user",
           name: message.from.telegramId?.toString(),
-          content: [...images, { type: "text", text: message.content }],
+          content: [/* ...images,  */ { type: "text", text: message.content }],
         });
       } else
         history.push({
