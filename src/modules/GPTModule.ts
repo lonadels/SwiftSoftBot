@@ -324,13 +324,13 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
   }
 
   async clear(ctx: CommandContext<T>): Promise<void> {
-    const messageRepo = DataSource.getRepository(Message);
+    /* const messageRepo = DataSource.getRepository(Message);
     await messageRepo.clear();
 
     const photoRepo = DataSource.getRepository(Photo);
     await photoRepo.clear();
 
-    ctx.reply("⚠️ База данных сообщений и фото очищена");
+    ctx.reply("⚠️ База данных сообщений и фото очищена"); */
   }
 
   async testModel(prompt: string) {
