@@ -322,7 +322,16 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
     //this.tuneJobs();
     //this.testModel("нарисуй мне картинку слона");
   }
-  async clear(ctx: CommandContext<T>): Promise<void> {}
+
+  async clear(ctx: CommandContext<T>): Promise<void> {
+    const messageRepo = DataSource.getRepository(Message);
+    await messageRepo.clear();
+
+    const photoRepo = DataSource.getRepository(Photo);
+    await photoRepo.clear();
+
+    ctx.reply("⚠️ База данных сообщений и фото очищена");
+  }
 
   async testModel(prompt: string) {
     const completion = await this.openai.completions.create({
