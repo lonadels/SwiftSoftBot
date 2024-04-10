@@ -28,8 +28,8 @@
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
     "rimraf": "^5.0.5",
-    "ts-node": "^11.0.0-beta.1",
-    "typescript": "^5.5.0-dev.20240331"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.4"
   },
   "dependencies": {
     "@grammyjs/auto-retry": "^1.1.1",
@@ -51,13 +51,9 @@
     "dotenv": "^16.3.2",
     "grammy": "^1.21.2",
     "libphonenumber-js": "^1.10.54",
-    "markdown-it": "^14.1.0",
-    "marked": "^12.0.1",
     "openai": "^4.29.2",
     "pg": "^8.11.3",
     "reflect-metadata": "^0.2.1",
-    "remirror": "^2.0.39",
-    "sharp": "^0.33.3",
     "typeorm": "^0.3.20"
   }
 }
