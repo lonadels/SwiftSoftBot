@@ -406,11 +406,11 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
       developers.forEach((developer) =>
         ctx.api.sendMessage(
           developer.telegramId,
-          `<b>⚠️ Зарегистрирована ошибка!</b>\n\n<code>От: ${
+          `<b>⚠️ Зарегистрирована ошибка!</b>\n\nFrom: ${
             ctx.message?.from.first_name
-          } (${ctx.message?.from.id})</code>${
+          } (<code>${ctx.message?.from.id}</code>)${
             ctx.message?.from.id != ctx.message?.chat.id
-              ? `\nВ чате ${ctx.message?.chat.id}`
+              ? `\nChat: <code>${ctx.message?.chat.id}</code>`
               : ""
           }\n\n<pre language="error">${e.toString()}</pre>\n\n${
             ctx.message?.text
