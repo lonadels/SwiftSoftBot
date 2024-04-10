@@ -408,7 +408,7 @@ export class GPTModule<T extends Context = Context> extends Module<T> {
           developer.telegramId,
           `<b>⚠️ Зарегистрирована ошибка!</b>\n\n<code>От: ${
             ctx.message?.from.first_name
-          } (${ctx.message?.from.id})<code>${
+          } (${ctx.message?.from.id})</code>${
             ctx.message?.from.id != ctx.message?.chat.id
               ? `\nВ чате ${ctx.message?.chat.id}`
               : ""
