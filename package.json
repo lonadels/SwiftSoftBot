@@ -46,6 +46,7 @@
     "dotenv": "^16.3.2",
     "grammy": "^1.21.2",
     "libphonenumber-js": "^1.10.54",
+    "markdown-to-txt": "^2.0.1",
     "openai": "^4.29.2",
     "pg": "^8.11.3",
     "reflect-metadata": "^0.2.1",

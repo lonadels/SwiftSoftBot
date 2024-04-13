@@ -9,8 +9,8 @@ import {
   Part,
 } from "@google/generative-ai";
 import * as fs from "fs";
-import { convertImageFormat } from "../utils/convertImageFormat";
 import sharp from "sharp";
+import markdownToTxt from "markdown-to-txt";
 
 export class GeminiModule<T extends Context> extends Module<T> {
   private readonly genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY!);
@@ -55,7 +55,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
           role: "system",
           parts: [
             {
-              text: `"You are a helpful assistant.\nYou name is "Свифи" or "Swifie"\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nDon't use markdown text formatting."`,
+              text: `"You are a helpful assistant.\nYou name is "Свифи" or "Swifie"\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian."`,
             },
           ],
         },
@@ -109,7 +109,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
     const text = response.text();
 
     typing.stop();
-    await ctx.reply(text || "Я устала :(", {
+    await ctx.reply(markdownToTxt(text) || "Я устала :(", {
       reply_parameters: {
         allow_sending_without_reply: false,
         message_id: ctx.message!.message_id,
