@@ -2,13 +2,11 @@ import { autoRetry } from "@grammyjs/auto-retry";
 import { ParseModeFlavor, hydrateReply } from "@grammyjs/parse-mode";
 import { Bot, Context } from "grammy";
 import { HydrateFlavor, hydrate } from "@grammyjs/hydrate";
-import { SubscriptionModule } from "./modules/SubscriptionModule";
 import {
   checkChatExistsOrCreate,
   checkUserExistsOrCreate,
 } from "./utils/checkExistsOrCreate";
 import { errorHandler } from "./errorHandler";
-import { GPTModule } from "./modules/GPTModule";
 import { MenuFlavor } from "@grammyjs/menu";
 import { JokeModule } from "./modules/JokeModule";
 import { GreetingModule } from "./modules/GreetingModule";
@@ -25,17 +23,18 @@ export function initBot() {
 
   bot.api.config.use(autoRetry());
 
-  bot.use(
+  /* bot.use(
     limit({
       timeFrame: 2000,
-      limit: 3,
+      limit: 1,
       async onLimitExceeded(ctx, next) {
-        await new Promise((r) => setTimeout(r, 2000));
+        ctx.reply("Не торопись...");
+        await new Promise((r) => setTimeout(r, 5000));
         next();
       },
     })
   );
-
+ */
   bot.use(hydrate());
   bot.use(hydrateReply);
 
@@ -49,19 +48,12 @@ export function initBot() {
   const dashboard = new DashboardModule(bot);
   const greeting = new GreetingModule(bot);
   const joke = new JokeModule(bot);
-  /* const sub = new SubscriptionModule(bot);
-
-  const gpt = new GPTModule(bot, {
-    subscriptionModule: sub,
-  }); */
 
   bot.api.setMyCommands([
     ...gemini.commands,
     ...dashboard.commands,
     ...greeting.commands,
     ...joke.commands,
-    //...sub.commands,
-    //...gpt.commands,
   ]);
 
   bot.catch(errorHandler);

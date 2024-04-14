@@ -967,6 +967,11 @@ lodash.unescape@^4.0.1:
   resolved "https://registry.npmjs.org/lodash.unescape/-/lodash.unescape-4.0.1.tgz"
   integrity sha512-DhhGRshNS1aX6s5YdBE3njCCouPgnG29ebyHvImlZzXZf2SHgt+J08DHgytTPnpywNbO1Y8mNUFyQuIDBq2JZg==
 
+lodash@^4.17.21:
+  version "4.17.21"
+  resolved "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz"
+  integrity sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==
+
 lru-cache@^10.2.0:
   version "10.2.0"
 
@@ -1076,6 +1081,11 @@ node-fetch@^2.6.7, node-fetch@^2.7.0:
   version "2.7.0"
   dependencies:
     whatwg-url "^5.0.0"
+
+nodejs-base64@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.npmjs.org/nodejs-base64/-/nodejs-base64-2.0.0.tgz"
+  integrity sha512-rf83teAz8f251P+HQW0nZyIhIIKrTs8wz11n5+Dp1b+/oWCYSeCfNfbUqda5B0DhspBVXwJ7SPk8aghv/TFsjQ==
 
 object-assign@^4, object-assign@^4.0.1:
   version "4.1.1"
