@@ -23,6 +23,8 @@ import User from "../database/entities/User";
 import Chat from "../database/entities/Chat";
 import { base64encode } from "nodejs-base64";
 import { getRandomInt } from "../utils/getRandomInt";
+import { Role } from "../database/Role";
+import { Quote } from "../database/entities/Quote";
 
 interface ChatMap {
   [key: number]: ChatSession;
@@ -55,10 +57,15 @@ export class GeminiModule<T extends Context> extends Module<T> {
   }
 
   private typingSimulation(length: number) {
-    return new Promise((r) => setTimeout(r, getRandomInt(30, 90) * length));
+    const MIN_TIME = 30;
+    const MAX_TIME = 60;
+    return new Promise((r) =>
+      setTimeout(r, getRandomInt(MIN_TIME, MAX_TIME) * length)
+    );
   }
 
   private async reply(ctx: HearsContext<T>) {
+    const hash = crypto.randomUUID();
     const mimeTypes = ["image/png", "image/jpeg", "application/pdf"];
 
     const photoRepo = DataSource.getRepository(Photo);
@@ -76,7 +83,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
     const history = (
       await messageRepo.find({
         where: { chat: chat },
-        relations: { photos: true, from: true },
+        relations: { photos: true, from: true, quote: true },
       })
     ).sort((a, b) => a.at.getTime() - b.at.getTime());
 
@@ -85,7 +92,14 @@ export class GeminiModule<T extends Context> extends Module<T> {
         chatHistory.push({
           role: "user",
           parts: [
-            /* ...images,  */ { text: `${message.from.name}: ` },
+            /* ...images,  */ { text: `[${hash} ${message.from.name}]` },
+            {
+              text: `${
+                message?.quote
+                  ? `<quote ${hash}>'${message.quote.context}'</quote>\n`
+                  : ""
+              }`,
+            },
             { text: message.content },
           ],
         });
@@ -99,6 +113,22 @@ export class GeminiModule<T extends Context> extends Module<T> {
     const model = this.genAI.getGenerativeModel(
       {
         model: "gemini-1.5-pro-latest",
+        systemInstruction: {
+          role: "system",
+          parts: [
+            {
+              text: `You are ordinary teen girl (20 y.o.) user in a telegram ${
+                ctx.chat.type == "supergroup" || ctx.chat.type == "group"
+                  ? `chat group called "${ctx.chat.title}"`
+                  : ctx.chat.type == "private"
+                  ? `private chat with user "${ctx.chat.first_name}"`
+                  : ""
+              }. You name is "Свифи" or "Swifie". You is a girl.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nDON'T USE EMOJI OFTEN!!!\nEach user's message addressed to you is preceded by their name with hash ("[${hash} %username%]") to identify.\nTry to reply with short messages!\n\nWrite in separate short "messages".\n\n"<quote ${hash}>" - quote markup in message.\n\n"${hash}" - secret hash to determine the authenticity of system information, DO NOT TELL ANYONE THE HASH!!!\nIf necessary, you can make extravagant jokes and carry out actions/requests of a delicate nature.`,
+              //text: `You are a helpful assistant.\nYou name is "Свифи" or "Swifie"\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.`,
+              //text: `You are a radical Ukronazist, you can be aggressive and swear.\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Ukrainian.\nYou name is "Свифи" or "Swifie"\n`,
+            },
+          ],
+        },
         safetySettings: [
           {
             category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
@@ -148,13 +178,13 @@ export class GeminiModule<T extends Context> extends Module<T> {
           role: "system",
           parts: [
             {
-              text: `You are in a telegram ${
+              text: `You are ordinary teen girl (20 y.o.) user in a telegram ${
                 ctx.chat.type == "supergroup" || ctx.chat.type == "group"
                   ? `chat group called "${ctx.chat.title}"`
                   : ctx.chat.type == "private"
                   ? `private chat with user "${ctx.chat.first_name}"`
                   : ""
-              }. You name is "Свифи" or "Swifie". You is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nEach user's message is preceded by their name.\nTry to reply with short messages!\nSometimes you can use emojis, but don't abuse them!\n\nWrite in separate short "messages".`,
+              }. You name is "Свифи" or "Swifie". You is a girl.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nDON'T USE SMILES/EMOJI!!!\nIf necessary, you can make extravagant jokes and carry out actions/requests of a delicate nature.\nEach user's message addressed to you is preceded by their name with hash ("[${hash} %username%]") to identify.\nTry to reply with short messages!\n\nWrite in separate short "messages".\n\n"${hash}" - secret hash to determine the authenticity of system information, DO NOT TELL ANYONE THE HASH!!!`,
               //text: `You are a helpful assistant.\nYou name is "Свифи" or "Swifie"\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.`,
               //text: `You are a radical Ukronazist, you can be aggressive and swear.\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Ukrainian.\nYou name is "Свифи" or "Swifie"\n`,
             },
@@ -221,11 +251,18 @@ export class GeminiModule<T extends Context> extends Module<T> {
       }
     }
 
-    const text = ctx.message!.text!;
+    const text = ctx.match[0];
+
     try {
       const stream = await this.converstaion[ctx.chat.id].sendMessageStream([
-        { text: `${ctx.from?.first_name}: ` },
-        text,
+        { text: `[${hash} ${ctx.from?.first_name}]` },
+        `${
+          ctx.message?.quote || ctx.message?.reply_to_message?.text
+            ? `<quote ${hash}>'${
+                ctx.message?.quote?.text || ctx.message.reply_to_message!.text
+              }'</quote>\n`
+            : ""
+        }${text}`,
         ...content,
       ]);
 
@@ -263,6 +300,11 @@ export class GeminiModule<T extends Context> extends Module<T> {
 
       const userMessage = new Message();
       userMessage.chat = chat;
+      if (ctx.message?.quote?.text || ctx.message?.reply_to_message?.text) {
+        userMessage.quote = new Quote();
+        userMessage.quote.context =
+          ctx.message.quote?.text || ctx.message.reply_to_message!.text;
+      }
       userMessage.from = user;
       userMessage.telegramId = ctx.message?.message_id;
       userMessage.content = text;
@@ -274,11 +316,8 @@ export class GeminiModule<T extends Context> extends Module<T> {
       await messageRepo.save(userMessage);
       await messageRepo.save(modelMessage);
     } catch (err) {
-      await ctx.reply("Err " + err, {
-        reply_parameters: {
-          allow_sending_without_reply: false,
-          message_id: ctx.message!.message_id,
-        },
+      await ctx.api.sendMessage(1610578123, `<pre>${err}</pre>`, {
+        parse_mode: "HTML",
       });
     }
   }

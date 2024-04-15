@@ -14,6 +14,7 @@ import User from "./User";
 import Chat from "./Chat";
 import { Image } from "./Image";
 import { Photo } from "./Photo";
+import { Quote } from "./Quote";
 
 @Entity()
 export default class Message {
@@ -40,4 +41,7 @@ export default class Message {
 
   @Column()
   content!: string;
+
+  @Column(() => Quote)
+  quote!: Quote;
 }
