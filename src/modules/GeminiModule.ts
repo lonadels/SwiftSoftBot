@@ -1,6 +1,6 @@
 import { Bot, CommandContext, Context, HearsContext } from "grammy";
 import { Module } from "./Module";
-import { BotCommand } from "grammy/types";
+import { BotCommand, Document, PhotoSize, Video } from "grammy/types";
 import { useType } from "../hooks/useType";
 import {
   ChatSession,
@@ -54,8 +54,12 @@ export class GeminiModule<T extends Context> extends Module<T> {
     };
   }
 
+  private typingSimulation(length: number) {
+    return new Promise((r) => setTimeout(r, getRandomInt(30, 90) * length));
+  }
+
   private async reply(ctx: HearsContext<T>) {
-    const mimeTypes = ["image/png", "image/jpeg"];
+    const mimeTypes = ["image/png", "image/jpeg", "application/pdf"];
 
     const photoRepo = DataSource.getRepository(Photo);
     const messageRepo = DataSource.getRepository(Message);
@@ -145,19 +149,19 @@ export class GeminiModule<T extends Context> extends Module<T> {
           parts: [
             {
               text: `You are in a telegram ${
-                ctx.chat.type == "group"
-                  ? `chat group "${ctx.chat.title}"`
+                ctx.chat.type == "supergroup" || ctx.chat.type == "group"
+                  ? `chat group called "${ctx.chat.title}"`
                   : ctx.chat.type == "private"
                   ? `private chat with user "${ctx.chat.first_name}"`
                   : ""
-              }. You name is "Свифи" or "Swifie". You is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nEach line break is a new separate message.\nEach user's message is preceded by their name.\nTry to reply with short messages!\nSometimes you can use emojis, but don't abuse them!`,
+              }. You name is "Свифи" or "Swifie". You is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nEach user's message is preceded by their name.\nTry to reply with short messages!\nSometimes you can use emojis, but don't abuse them!\n\nWrite in separate short "messages".`,
               //text: `You are a helpful assistant.\nYou name is "Свифи" or "Swifie"\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.`,
               //text: `You are a radical Ukronazist, you can be aggressive and swear.\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Ukrainian.\nYou name is "Свифи" or "Swifie"\n`,
             },
           ],
         },
         generationConfig: {
-          maxOutputTokens: 300,
+          //maxOutputTokens: 200,
         },
         safetySettings: [
           {
@@ -182,18 +186,21 @@ export class GeminiModule<T extends Context> extends Module<T> {
 
     const content: Part[] = [];
 
-    if (
-      ctx.message?.photo ||
-      (ctx.message?.document &&
-        mimeTypes.includes(ctx.message.document.mime_type!))
-    ) {
-      let fileInfo;
+    const file: Document | PhotoSize | Video | undefined =
+      ctx.message?.photo?.last() ||
+      ctx.message?.document ||
+      ctx.message?.video ||
+      undefined;
 
-      if (ctx.message?.document)
-        fileInfo = await ctx.api.getFile(ctx.message.document.file_id);
-      else if (ctx.message?.photo)
-        fileInfo = await ctx.api.getFile(ctx.message.photo.last()!.file_id);
-      else return;
+    if (
+      file &&
+      (ctx.message?.document
+        ? ctx.message?.document?.mime_type &&
+          mimeTypes.includes(ctx.message.document.mime_type)
+        : true)
+    ) {
+      if (!file) return;
+      const fileInfo = await ctx.api.getFile(file.file_id);
 
       if (fileInfo.file_path) {
         const url = `https://api.telegram.org/file/bot${process.env
@@ -208,37 +215,50 @@ export class GeminiModule<T extends Context> extends Module<T> {
         content.push({
           inlineData: {
             data: base64text,
-            mimeType: `image/png`,
+            mimeType: (file as Document)?.mime_type || `image/png`,
           },
         });
       }
     }
 
     const text = ctx.message!.text!;
-    let response: string;
     try {
-      response = (
-        await this.converstaion[ctx.chat.id].sendMessage([
-          { text: `${ctx.from?.first_name}: ` },
-          text,
-          ...content,
-        ])
-      ).response.text();
+      const stream = await this.converstaion[ctx.chat.id].sendMessageStream([
+        { text: `${ctx.from?.first_name}: ` },
+        text,
+        ...content,
+      ]);
 
-      for await (const line of markdownToTxt(response).split("\n")) {
-        if (line) {
-          const typing = useType(ctx);
-          await new Promise((r) =>
-            setTimeout(r, line.length * getRandomInt(20, 90))
-          );
-          typing.stop();
-          await ctx.reply(line, {
-            /* reply_parameters: {
-            allow_sending_without_reply: false,
-            message_id: ctx.message!.message_id,
-          }, */
-          });
+      const lines: string[] = [];
+      let position: number = 0;
+
+      for await (const chunk of stream.stream) {
+        const chunkText = chunk.text();
+        if (lines.length > 0) {
+          lines[lines.length - 1] += chunkText.split("\n").first();
+          lines.push(...chunkText.split("\n").slice(1));
+        } else {
+          lines.push(...chunkText.split("\n"));
         }
+        for await (const line of lines.slice(position, -1)) {
+          if (line.trim().length > 0) {
+            const typing = useType(ctx);
+
+            await this.typingSimulation(line.trim().length);
+            await ctx
+              .reply(markdownToTxt(line.trim()))
+              .finally(() => typing.stop());
+          }
+          position++;
+        }
+      }
+
+      if (lines.last() && lines.last()!.trim().length > 0) {
+        const typing = useType(ctx);
+        await this.typingSimulation(lines.last()!.trim().length);
+        await ctx
+          .reply(markdownToTxt(lines.last()!.trim()))
+          .finally(() => typing.stop());
       }
 
       const userMessage = new Message();
@@ -249,8 +269,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
 
       const modelMessage = new Message();
       modelMessage.chat = chat;
-      //modelMessage.telegramId = -1; // msg.message_id;
-      modelMessage.content = response;
+      modelMessage.content = lines.join("\n");
 
       await messageRepo.save(userMessage);
       await messageRepo.save(modelMessage);
