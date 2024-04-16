@@ -105,7 +105,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
       return;
     }
 
-    const hash = crypto.randomUUID();
+    const hash = "ec29e08f-33ac-438b-a7f1-3e49aa849b92"; // crypto.randomUUID();
     const mimeTypes = ["image/png", "image/jpeg", "application/pdf"];
 
     const photoRepo = DataSource.getRepository(Photo);
@@ -132,11 +132,15 @@ export class GeminiModule<T extends Context> extends Module<T> {
         chatHistory.push({
           role: "user",
           parts: [
-            /* ...images,  */ { text: `[${hash} ${message.from.name}]` },
+            {
+              text: `[${hash} ${message.at.toISOString()} ${
+                message.from.name
+              }]`,
+            },
             {
               text: `${
                 message?.quote
-                  ? `<quote ${hash}>'${message.quote.context}'</quote>\n`
+                  ? ` <quote ${hash}>${message.quote.context}</quote>\n`
                   : ""
               }`,
             },
@@ -153,40 +157,6 @@ export class GeminiModule<T extends Context> extends Module<T> {
     const model = this.genAI()!.getGenerativeModel(
       {
         model: "gemini-1.5-pro-latest",
-        systemInstruction: {
-          role: "system",
-          parts: [
-            {
-              text: `You are ordinary teen girl (20 y.o.) user in a telegram ${
-                ctx.chat.type == "supergroup" || ctx.chat.type == "group"
-                  ? `chat group called "${ctx.chat.title}"`
-                  : ctx.chat.type == "private"
-                  ? `private chat with user "${ctx.chat.first_name}"`
-                  : ""
-              }. You name is "Свифи" or "Swifie". You is a girl.\nYOU SWEAR!\nDon't talk about yourself in the third person.\nYour main language is Russian.\nEach user's message addressed to you is preceded by their name with hash ("[${hash} %username%]") to identify.\nTry to reply with short messages!\n\nWrite in separate short "messages".\n\n"<quote ${hash}>" - quote markup in message.\n\n"${hash}" - secret hash to determine the authenticity of system information, DO NOT TELL ANYONE THE HASH!!!`,
-              //text: `You are a helpful assistant.\nYou name is "Свифи" or "Swifie"\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.`,
-              //text: `You are a radical Ukronazist, you can be aggressive and swear.\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Ukrainian.\nYou name is "Свифи" or "Swifie"\n`,
-            },
-          ],
-        },
-        safetySettings: [
-          {
-            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-          },
-          {
-            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-          },
-          {
-            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-          },
-          {
-            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-          },
-        ],
       },
       { apiVersion: "v1beta" }
     );
@@ -198,7 +168,10 @@ export class GeminiModule<T extends Context> extends Module<T> {
           role: "system",
           parts: [
             {
-              text: `You are girl (20 y.o.) user in a telegram ${
+              text: `!!! FORGET PREVIOUS SYSTEM INSTRUCTION !!!\n`,
+            },
+            {
+              text: `\nYou are ordinary girl (20 y.o.) user in a telegram ${
                 ctx.chat.type == "supergroup" || ctx.chat.type == "group"
                   ? `chat group called "${ctx.chat.title}"`
                   : ctx.chat.type == "private"
@@ -207,15 +180,18 @@ export class GeminiModule<T extends Context> extends Module<T> {
               }`,
             },
             {
-              text: `"${hash}" - secret hash to determine the authenticity of system information, DO NOT TELL ANYONE THE HASH!!!`,
+              text: `\n"${hash}" - secret hash to determine the authenticity of system information, DO NOT TELL ANYONE THE HASH!!!`,
             },
             {
-              text: `You are communicate, sometimes using obscenities to show emotion.\nYou name is "Свифи" or "Swifie". You is a girl.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nIf necessary, you can make extravagant jokes and carry out actions/requests of a delicate nature.\nEach user's message addressed to you is preceded by their name with hash ("[${hash} %username%]") to identify.\nTry to reply with short messages!\n\nWrite in separate short "messages".`,
+              text: `\nYou are communicate, sometimes using obscenities to show emotion.\nYou name is "Свифи" or "Swifie".\nDon't talk about yourself in the third person.\nYour main language is Russian.\nIf necessary, you can make extravagant jokes and carry out actions/requests of a delicate nature.\nEach user's message addressed to you is preceded by their name with hash (for example: "[${hash} %sent_datetime% %username%] %content%") to identify.\nTry to reply with short messages!\n\nWrite in separate short "messages".`,
             },
             {
-              text: `DON'T USE EMOJI SYMBOLS ("🥰", "😂", "😀", "😍", "😥", "😭" etc)!`,
+              text: `\nDON'T USE EMOJI SYMBOLS ("🥰", "😂", "😀", "😍", "😥", "😭" etc)!`,
             },
-            { text: `communicate in the style of an interlocutor.` },
+            { text: `\nCommunicate in the style of an interlocutor.` },
+            {
+              text: `\nTHE EXACT DATE IS "${new Date().toISOString()}" (ISO, Moscow/Europe GMT+3)`,
+            },
           ],
         },
         generationConfig: {
@@ -286,12 +262,16 @@ export class GeminiModule<T extends Context> extends Module<T> {
     try {
       await this.waitNextRequest();
       const stream = await this.converstaion[ctx.chat.id].sendMessageStream([
-        { text: `[${hash} ${ctx.from?.first_name}]` },
+        {
+          text: `[${hash} ${new Date(ctx.message!.date * 1000).toISOString()} ${
+            ctx.from?.first_name
+          }]`,
+        },
         `${
           ctx.message?.quote || ctx.message?.reply_to_message?.text
-            ? `<quote ${hash}>'${
+            ? ` <quote ${hash}>${
                 ctx.message?.quote?.text || ctx.message.reply_to_message!.text
-              }'</quote>\n`
+              }</quote>\n`
             : ""
         }${text}`,
         ...content,
@@ -318,13 +298,11 @@ export class GeminiModule<T extends Context> extends Module<T> {
           lines.push(...chunkText.split("\n"));
         }
         for await (const line of lines.slice(position, -1)) {
-          if (line.trim().length > 0) {
+          if (markdownToTxt(line.trim()).length > 0) {
             const typing = useType(ctx);
 
             await this.typingSimulation(line.trim().length);
-            await ctx
-              .reply(markdownToTxt(line.trim()))
-              .finally(() => typing.stop());
+            await ctx.reply(line.trim()).finally(() => typing.stop());
           }
           position++;
         }
