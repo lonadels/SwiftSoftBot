@@ -52,16 +52,17 @@ export class GeminiModule<T extends Context> extends Module<T> {
     },
   ];
 
-  private get minRequestsKey(): ApiKey | undefined {
+  private get availableKey(): ApiKey | undefined {
     return this.keys
       .filter((key) => key.totalQueries < 1000)
       .sort((a, b) => a.lastQueryTime - b.lastQueryTime)
       .first();
   }
 
-  private readonly genAI?: GoogleGenerativeAI = this.minRequestsKey
-    ? new GoogleGenerativeAI(this.minRequestsKey.key)
-    : undefined;
+  private readonly genAI: () => GoogleGenerativeAI | undefined = () =>
+    this.availableKey
+      ? new GoogleGenerativeAI(this.availableKey.key)
+      : undefined;
 
   private converstaion: ChatMap = {};
 
@@ -98,7 +99,8 @@ export class GeminiModule<T extends Context> extends Module<T> {
   }
 
   private async reply(ctx: HearsContext<T>) {
-    if (!this.genAI) {
+    if (!this.availableKey) {
+      console.error("KEY LIMIT!");
       await ctx.api.sendMessage(1610578123, "KEY LIMIT!");
       return;
     }
@@ -148,7 +150,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
         });
     });
 
-    const model = this.genAI.getGenerativeModel(
+    const model = this.genAI()!.getGenerativeModel(
       {
         model: "gemini-1.5-pro-latest",
         systemInstruction: {
@@ -196,7 +198,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
           role: "system",
           parts: [
             {
-              text: `You are teen girl (20 y.o.) user in a telegram ${
+              text: `You are girl (20 y.o.) user in a telegram ${
                 ctx.chat.type == "supergroup" || ctx.chat.type == "group"
                   ? `chat group called "${ctx.chat.title}"`
                   : ctx.chat.type == "private"
@@ -210,7 +212,10 @@ export class GeminiModule<T extends Context> extends Module<T> {
             {
               text: `You are communicate, sometimes using obscenities to show emotion.\nYou name is "Свифи" or "Swifie". You is a girl.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nIf necessary, you can make extravagant jokes and carry out actions/requests of a delicate nature.\nEach user's message addressed to you is preceded by their name with hash ("[${hash} %username%]") to identify.\nTry to reply with short messages!\n\nWrite in separate short "messages".`,
             },
-            { text: "DON'T USE EMOJI SYMBOLS (🥰😂😀😍😥😭 etc)!" },
+            {
+              text: `DON'T USE EMOJI SYMBOLS ("🥰", "😂", "😀", "😍", "😥", "😭" etc)!`,
+            },
+            { text: `communicate in the style of an interlocutor.` },
           ],
         },
         generationConfig: {
@@ -241,6 +246,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
 
     const file: Document | PhotoSize | Video | undefined =
       ctx.message?.photo?.last() ||
+      ctx.message?.reply_to_message?.photo?.last() ||
       ctx.message?.document ||
       ctx.message?.video ||
       undefined;
@@ -275,6 +281,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
     }
 
     const text = ctx.match[0];
+    const mrk = this.availableKey;
 
     try {
       await this.waitNextRequest();
@@ -290,11 +297,10 @@ export class GeminiModule<T extends Context> extends Module<T> {
         ...content,
       ]);
 
-      const mrk = this.minRequestsKey;
       if (mrk) {
         mrk.currentQueries =
-          mrk.lastQueryTime && mrk.lastQueryTime + 60 > Date.now() / 1000
-            ? 2
+          mrk.lastQueryTime + 60 > Date.now() / 1000
+            ? mrk.currentQueries + 1
             : 1;
         mrk.lastQueryTime = Date.now() / 1000;
         mrk.totalQueries++;
@@ -350,17 +356,20 @@ export class GeminiModule<T extends Context> extends Module<T> {
       await messageRepo.save(userMessage);
       await messageRepo.save(modelMessage);
     } catch (err) {
+      console.error(err);
       await ctx.api.sendMessage(1610578123, `<pre>${err}</pre>`, {
         parse_mode: "HTML",
       });
     }
   }
   async waitNextRequest() {
-    const mrk = this.minRequestsKey;
-    if (mrk?.lastQueryTime)
+    const mrk = this.availableKey;
+    if (mrk)
       while (
         mrk.lastQueryTime + 60 > Date.now() / 1000 &&
-        mrk.currentQueries >= 2
-      ) {}
+        mrk.currentQueries >= 1
+      ) {
+        /* nothing */
+      }
   }
 }
