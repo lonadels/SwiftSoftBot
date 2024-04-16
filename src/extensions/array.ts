@@ -8,7 +8,7 @@ declare global {
     /**
      * Returns first element of array
      */
-    first(): T;
+    first(): T | undefined;
   }
 }
 Array.prototype.last = function <T>() {

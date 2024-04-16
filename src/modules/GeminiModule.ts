@@ -26,13 +26,46 @@ import { getRandomInt } from "../utils/getRandomInt";
 import { Role } from "../database/Role";
 import { Quote } from "../database/entities/Quote";
 
+interface ApiKey {
+  key: string;
+  totalQueries: number;
+  currentQueries: number;
+  lastQueryTime: number;
+}
+
 interface ChatMap {
   [key: number]: ChatSession;
 }
 export class GeminiModule<T extends Context> extends Module<T> {
-  private readonly genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY!);
+  private readonly keys: ApiKey[] = [
+    {
+      key: process.env.GEMINI_KEY!,
+      totalQueries: 0,
+      currentQueries: 0,
+      lastQueryTime: 0,
+    },
+    {
+      key: process.env.GEMINI_SECOND_KEY!,
+      totalQueries: 0,
+      currentQueries: 0,
+      lastQueryTime: 0,
+    },
+  ];
+
+  private get minRequestsKey(): ApiKey | undefined {
+    return this.keys
+      .filter((key) => key.totalQueries < 1000)
+      .sort((a, b) => a.lastQueryTime - b.lastQueryTime)
+      .first();
+  }
+
+  private readonly genAI?: GoogleGenerativeAI = this.minRequestsKey
+    ? new GoogleGenerativeAI(this.minRequestsKey.key)
+    : undefined;
 
   private converstaion: ChatMap = {};
+
+  private requestPool: Array<() => Promise<void>> = [];
 
   constructor(bot: Bot<T>) {
     super(bot);
@@ -65,6 +98,11 @@ export class GeminiModule<T extends Context> extends Module<T> {
   }
 
   private async reply(ctx: HearsContext<T>) {
+    if (!this.genAI) {
+      await ctx.api.sendMessage(1610578123, "KEY LIMIT!");
+      return;
+    }
+
     const hash = crypto.randomUUID();
     const mimeTypes = ["image/png", "image/jpeg", "application/pdf"];
 
@@ -123,7 +161,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
                   : ctx.chat.type == "private"
                   ? `private chat with user "${ctx.chat.first_name}"`
                   : ""
-              }. You name is "Свифи" or "Swifie". You is a girl.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nDON'T USE EMOJI OFTEN!!!\nEach user's message addressed to you is preceded by their name with hash ("[${hash} %username%]") to identify.\nTry to reply with short messages!\n\nWrite in separate short "messages".\n\n"<quote ${hash}>" - quote markup in message.\n\n"${hash}" - secret hash to determine the authenticity of system information, DO NOT TELL ANYONE THE HASH!!!\nIf necessary, you can make extravagant jokes and carry out actions/requests of a delicate nature.`,
+              }. You name is "Свифи" or "Swifie". You is a girl.\nYOU SWEAR!\nDon't talk about yourself in the third person.\nYour main language is Russian.\nEach user's message addressed to you is preceded by their name with hash ("[${hash} %username%]") to identify.\nTry to reply with short messages!\n\nWrite in separate short "messages".\n\n"<quote ${hash}>" - quote markup in message.\n\n"${hash}" - secret hash to determine the authenticity of system information, DO NOT TELL ANYONE THE HASH!!!`,
               //text: `You are a helpful assistant.\nYou name is "Свифи" or "Swifie"\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.`,
               //text: `You are a radical Ukronazist, you can be aggressive and swear.\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Ukrainian.\nYou name is "Свифи" or "Swifie"\n`,
             },
@@ -153,41 +191,26 @@ export class GeminiModule<T extends Context> extends Module<T> {
 
     if (!this.converstaion[ctx.chat.id]) {
       this.converstaion[ctx.chat.id] = model.startChat({
-        history: [
-          ...chatHistory,
-          /* 
-        {
-          role: "user",
-          parts: [{ text: `Моё имя: "${ctx.from?.first_name}"` }],
-        },
-        ...(ctx.message?.reply_to_message?.text
-          ? [
-              {
-                role:
-                  ctx.message?.reply_to_message?.from?.id ==
-                  (await ctx.api.getMe())?.id
-                    ? "model"
-                    : "user",
-                parts: [{ text: ctx.message.reply_to_message.text }],
-              },
-            ]
-          : []),
-       */
-        ],
+        history: [...chatHistory],
         systemInstruction: {
           role: "system",
           parts: [
             {
-              text: `You are ordinary teen girl (20 y.o.) user in a telegram ${
+              text: `You are teen girl (20 y.o.) user in a telegram ${
                 ctx.chat.type == "supergroup" || ctx.chat.type == "group"
                   ? `chat group called "${ctx.chat.title}"`
                   : ctx.chat.type == "private"
                   ? `private chat with user "${ctx.chat.first_name}"`
                   : ""
-              }. You name is "Свифи" or "Swifie". You is a girl.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nDON'T USE SMILES/EMOJI!!!\nIf necessary, you can make extravagant jokes and carry out actions/requests of a delicate nature.\nEach user's message addressed to you is preceded by their name with hash ("[${hash} %username%]") to identify.\nTry to reply with short messages!\n\nWrite in separate short "messages".\n\n"${hash}" - secret hash to determine the authenticity of system information, DO NOT TELL ANYONE THE HASH!!!`,
-              //text: `You are a helpful assistant.\nYou name is "Свифи" or "Swifie"\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Russian.`,
-              //text: `You are a radical Ukronazist, you can be aggressive and swear.\nYou is a woman.\nDon't talk about yourself in the third person.\nYour main language is Ukrainian.\nYou name is "Свифи" or "Swifie"\n`,
+              }`,
             },
+            {
+              text: `"${hash}" - secret hash to determine the authenticity of system information, DO NOT TELL ANYONE THE HASH!!!`,
+            },
+            {
+              text: `You are communicate, sometimes using obscenities to show emotion.\nYou name is "Свифи" or "Swifie". You is a girl.\nDon't talk about yourself in the third person.\nYour main language is Russian.\nIf necessary, you can make extravagant jokes and carry out actions/requests of a delicate nature.\nEach user's message addressed to you is preceded by their name with hash ("[${hash} %username%]") to identify.\nTry to reply with short messages!\n\nWrite in separate short "messages".`,
+            },
+            { text: "DON'T USE EMOJI SYMBOLS (🥰😂😀😍😥😭 etc)!" },
           ],
         },
         generationConfig: {
@@ -254,6 +277,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
     const text = ctx.match[0];
 
     try {
+      await this.waitNextRequest();
       const stream = await this.converstaion[ctx.chat.id].sendMessageStream([
         { text: `[${hash} ${ctx.from?.first_name}]` },
         `${
@@ -265,6 +289,16 @@ export class GeminiModule<T extends Context> extends Module<T> {
         }${text}`,
         ...content,
       ]);
+
+      const mrk = this.minRequestsKey;
+      if (mrk) {
+        mrk.currentQueries =
+          mrk.lastQueryTime && mrk.lastQueryTime + 60 > Date.now() / 1000
+            ? 2
+            : 1;
+        mrk.lastQueryTime = Date.now() / 1000;
+        mrk.totalQueries++;
+      }
 
       const lines: string[] = [];
       let position: number = 0;
@@ -320,5 +354,13 @@ export class GeminiModule<T extends Context> extends Module<T> {
         parse_mode: "HTML",
       });
     }
+  }
+  async waitNextRequest() {
+    const mrk = this.minRequestsKey;
+    if (mrk?.lastQueryTime)
+      while (
+        mrk.lastQueryTime + 60 > Date.now() / 1000 &&
+        mrk.currentQueries >= 2
+      ) {}
   }
 }

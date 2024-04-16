@@ -23,18 +23,6 @@ export function initBot() {
 
   bot.api.config.use(autoRetry());
 
-  /* bot.use(
-    limit({
-      timeFrame: 2000,
-      limit: 1,
-      async onLimitExceeded(ctx, next) {
-        ctx.reply("Не торопись...");
-        await new Promise((r) => setTimeout(r, 5000));
-        next();
-      },
-    })
-  );
- */
   bot.use(hydrate());
   bot.use(hydrateReply);
 
