@@ -6,6 +6,7 @@ import {
   Document,
   PhotoSize,
   Video,
+  VideoNote,
   Voice,
 } from "grammy/types";
 import { useType } from "../hooks/useType";
@@ -270,7 +271,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
     }
 
     type TypedAttachment = Document | Video | Animation | Voice;
-    type Attachment = TypedAttachment | PhotoSize | undefined;
+    type Attachment = TypedAttachment | VideoNote | PhotoSize | undefined;
 
     const photoAttachment =
       ctx.message?.photo?.last() ||
