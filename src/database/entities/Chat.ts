@@ -7,10 +7,6 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { Subscribe } from "./Subscribe";
-import { VoiceModel, VoiceQuality } from "../VoiceTypes";
-import { Voice } from "./Voice";
-import { Image } from "./Image";
 import Message from "./Message";
 @Entity()
 export default class Chat {
@@ -19,12 +15,6 @@ export default class Chat {
 
   @Column({ type: "bigint", nullable: true, unique: true })
   telegramId?: number;
-
-  @Column(() => Voice)
-  voice!: Voice;
-
-  @Column(() => Image)
-  image!: Image;
 
   @OneToMany(() => Message, (message) => message.from)
   messages?: Message[];

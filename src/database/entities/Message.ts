@@ -12,7 +12,6 @@ import {
 } from "typeorm";
 import User from "./User";
 import Chat from "./Chat";
-import { Image } from "./Image";
 import { Photo } from "./Photo";
 import { Quote } from "./Quote";
 
