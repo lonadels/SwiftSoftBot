@@ -1,20 +1,42 @@
 declare global {
   interface Array<T> {
     /**
-     * Returns last element of array
+     * Возвращает последний элемент массива или устанавливает его
      */
-    last(): T | undefined;
+    get last(): T | undefined;
+    set last(value: T);
 
     /**
-     * Returns first element of array
+     * Возвращает первый элемент массива или устанавливает его
      */
-    first(): T | undefined;
+    get first(): T | undefined;
+    set first(value: T);
   }
 }
-Array.prototype.last = function <T>() {
-  return this.length > 0 ? this[this.length - 1] : undefined;
-};
 
-Array.prototype.first = function <T>() {
-  return this[0];
-};
+Object.defineProperties(Array.prototype, {
+  last: {
+    get: function <T>(this: T[]) {
+      return this.length > 0 ? this[this.length - 1] : undefined;
+    },
+    set: function <T>(this: T[], value: T) {
+      if (this.length > 0) {
+        this[this.length - 1] = value;
+      } else if (value !== undefined) {
+        this.push(value);
+      }
+    },
+  },
+  first: {
+    get: function <T>(this: T[]) {
+      return this[0];
+    },
+    set: function <T>(this: T[], value: T) {
+      if (this.length > 0) {
+        this[0] = value;
+      } else if (value !== undefined) {
+        this.push(value);
+      }
+    },
+  },
+});

@@ -21,9 +21,6 @@ function main() {
       console.error(e);
     }
   });
-  const arr = [1, 2];
-  arr.last();
-  arr.push();
 }
 
 main();
