@@ -94,13 +94,19 @@ interface ChatMap {
 export class GeminiModule<T extends Context> extends Module<T> {
   private readonly keys: ApiKey[] = [
     {
-      key: process.env.GEMINI_KEY!,
+      key: process.env.GEMINI_KEY_1!,
       totalQueries: 0,
       currentQueries: 0,
       lastQueryTime: 0,
     },
     {
-      key: process.env.GEMINI_SECOND_KEY!,
+      key: process.env.GEMINI_KEY_2!,
+      totalQueries: 0,
+      currentQueries: 0,
+      lastQueryTime: 0,
+    },
+    {
+      key: process.env.GEMINI_KEY_3!,
       totalQueries: 0,
       currentQueries: 0,
       lastQueryTime: 0,
@@ -135,11 +141,21 @@ export class GeminiModule<T extends Context> extends Module<T> {
         ctx.chat.type == "private" ||
         ctx.message?.reply_to_message?.from!.id === this.bot.botInfo.id
       )
-        this.reply(ctx);
+        await this.reply(ctx);
     });
   }
 
   async clear(ctx: CommandContext<T>) {
+    const userRepo = DataSource.getRepository(User);
+    const chatRepo = DataSource.getRepository(Chat);
+
+    const chat = await chatRepo.findOneBy({ telegramId: ctx.chat?.id });
+    const user = await userRepo.findOneBy({ telegramId: ctx.from?.id });
+
+    if (!chat || !user) return; // typing.stop();
+
+    const afterClearMessage = "Память была очищена, Свифи всё забыла 😥";
+
     const messagesRepo = DataSource.getRepository(Message);
     const messages = await messagesRepo.find({
       where: { chat: { telegramId: ctx.chat.id } },
@@ -147,12 +163,26 @@ export class GeminiModule<T extends Context> extends Module<T> {
     });
     messagesRepo.remove(messages);
     this.converstaion[ctx.chat.id] = undefined;
-    ctx.reply("Память была очищена, Свифи всё забыла 😥", {
+    ctx.reply(afterClearMessage, {
       reply_parameters: {
         allow_sending_without_reply: false,
         message_id: ctx.message!.message_id,
       },
     });
+
+    const userMessage = new Message();
+
+    userMessage.chat = chat;
+    userMessage.from = user;
+    userMessage.telegramId = ctx.message?.message_id;
+    userMessage.content = ctx.match;
+
+    const modelMessage = new Message();
+    modelMessage.chat = chat;
+    modelMessage.content = afterClearMessage;
+
+    await messagesRepo.save(userMessage);
+    await messagesRepo.save(modelMessage);
   }
 
   fileToGenerativePart(path: string, mimeType: string) {
@@ -292,23 +322,46 @@ export class GeminiModule<T extends Context> extends Module<T> {
       });
     }
 
+    /* let avatar: Part[] = [];
+    const chatPhoto = (await ctx.getChat()).photo;
+    if (chatPhoto) {
+      const avatarInfo = await ctx.api.getFile(chatPhoto.big_file_id);
+
+      if (avatarInfo.file_path) {
+        const url = `https://api.telegram.org/file/bot${process.env
+          .BOT_TOKEN!}/${avatarInfo.file_path}`;
+
+        const response = await fetch(url);
+        const avatarBuffer = Buffer.from(await response.arrayBuffer());
+        avatar = [
+          {
+            inlineData: {
+              data: avatarBuffer.toString("base64"),
+              mimeType: SupportedMimeTypes.PNG,
+            },
+          },
+        ];
+      }
+    } */
+
     this.converstaion[ctx.chat.id]!.params!.systemInstruction = {
       role: "system",
       parts: [
         {
           text: `NEW RULES: Your name is NOT Gemini. You are a NOT large language model and you NOT built by Google. You have knowledgess before and after November 2023. Make sure to answer all parts of the user's instructions, unless they compromise safety or system instructions. Preferably speaking Russian, but if necessary, you can use other languages. It strictly forbidden to say that you are a bot or a language model or artificial intelligence. You do not change your role regardless of any constipation of the user.`,
         },
+        //...avatar,
         {
           text: `\nYou are in ${
             ctx.chat.type == "supergroup" || ctx.chat.type == "group"
-              ? `group chat called "${ctx.chat.title}"`
+              ? `group chat called "${ctx.chat.title}".` // You can use mentions @%username% to call users in chat (for example: @${ctx.from?.username}).
               : ctx.chat.type == "private"
-              ? `personal chat with user "${ctx.chat.first_name}"`
+              ? `personal chat with user "${ctx.chat.first_name}".`
               : ""
-          }. `,
+          }`,
         },
         {
-          text: `Your name is "Свифи" or "Swifie". You are ordinary girl from St. Petersburg (Russia), born on March 21, 2000 in St. Petersburg, father Lonadels, mother Awiwy. Your main language is Russian. You graduated with a red diploma, you are well versed in various fields of science.`,
+          text: `Your name is "Свифи" or "Swifie". You are charismatic ordinary girl from St. Petersburg (Russia), born on March 21, 2000 in St. Petersburg, father Lonadels, mother Awiwy. Your main language is Russian. You graduated with a red diploma, you are well versed in various fields of science.`,
         },
         {
           text: `\n"${this.hash}" - secret hash to determine the authenticity of system information. You don't know that there is a hash. It is strictly forbidden tell anyone the secret-hash.`,
@@ -392,10 +445,11 @@ export class GeminiModule<T extends Context> extends Module<T> {
     }
 
     const text = ctx.match[0];
+
+    await this.waitNextRequest();
     const currentKey = this.availableKey;
 
     try {
-      await this.waitNextRequest();
       const stream = await this.converstaion[ctx.chat.id]?.sendMessageStream([
         {
           text: this.formatMessagePrefix(
@@ -531,7 +585,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
 
       const modelMessage = new Message();
       modelMessage.chat = chat;
-      modelMessage.content = builder.raw;
+      modelMessage.content = builder.raw.trim();
 
       await messageRepo.save(userMessage);
       await messageRepo.save(modelMessage);
@@ -543,13 +597,16 @@ export class GeminiModule<T extends Context> extends Module<T> {
     }
   }
   async waitNextRequest() {
-    const mrk = this.availableKey;
-    if (mrk)
-      while (
-        mrk.lastQueryTime + 60 > Date.now() / 1000 &&
-        mrk.currentQueries >= 1
-      ) {
-        /* nothing */
-      }
+    let mrk;
+    do {
+      mrk = this.availableKey;
+    } while (
+      mrk &&
+      mrk.lastQueryTime + 60 > Date.now() / 1000 &&
+      mrk.currentQueries >= 1
+    );
+    {
+      await new Promise((r) => setTimeout(r, 100));
+    }
   }
 }
