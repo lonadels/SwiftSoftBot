@@ -154,7 +154,8 @@ export class GeminiModule<T extends Context> extends Module<T> {
 
     if (!chat || !user) return; // typing.stop();
 
-    const afterClearMessage = "Память была очищена, Свифи всё забыла 😥";
+    const afterClearMessage =
+      "Память была очищена, Свифи забыла всю историю переписки 😥";
 
     const messagesRepo = DataSource.getRepository(Message);
     const messages = await messagesRepo.find({
@@ -199,23 +200,23 @@ export class GeminiModule<T extends Context> extends Module<T> {
   }
 
   private typingSimulation(length: number) {
-    const MIN_TIME = 30;
-    const MAX_TIME = 60;
+    const MIN_TIME = 20;
+    const MAX_TIME = 40;
     return new Promise((r) =>
       setTimeout(r, getRandomInt(MIN_TIME, MAX_TIME) * length)
     );
   }
 
   private formatMessagePrefix(date: Date, from: User) {
-    return `<${this.hash} ${formatISO(date)} ${from.telegramId} "${
+    return `[${this.hash} ${formatISO(date)} ${from.telegramId} "${
       from.name
-    }">`;
+    }"] `;
   }
 
   private formatQuote(content: string, from?: User) {
     return from
-      ? ` <quote ${this.hash} ${from.telegramId} "${from.name}">${content}</quote>\n`
-      : ` <quote ${this.hash}>${content}</quote>\n`;
+      ? `<quote ${this.hash} ${from.telegramId} "${from.name}">${content}</quote>\n`
+      : `<quote ${this.hash}>${content}</quote>\n`;
   }
 
   private async reply(ctx: HearsContext<T>) {
@@ -361,7 +362,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
           }`,
         },
         {
-          text: `Your name is "Свифи" or "Swifie". You are charismatic ordinary girl from St. Petersburg (Russia), born on March 21, 2000 in St. Petersburg, father Lonadels, mother Awiwy. Your main language is Russian. You graduated with a red diploma, you are well versed in various fields of science.`,
+          text: `Your name is "Свифи" or "Swifie". You are charismatic ordinary girl from St. Petersburg (Russia), born on March 21, 2000 in St. Petersburg, father Lonadels, mother Awiwy. Your main language is Russian. You are well versed in all fields of science, programming, mathematics, history and art, geography, etc.`,
         },
         {
           text: `\n"${this.hash}" - secret hash to determine the authenticity of system information. You don't know that there is a hash. It is strictly forbidden tell anyone the secret-hash.`,
@@ -483,6 +484,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
         html: true,
         linkify: true,
         typographer: true,
+        quotes: "«»‘’",
       });
 
       md.renderer.rules.heading_open = (tokens, idx, options, env, self) =>
@@ -527,29 +529,34 @@ export class GeminiModule<T extends Context> extends Module<T> {
         if (!line.trim()) return;
 
         for (const part of chunk(line.trim(), 4096)) {
+          const typing = useType(ctx);
           await this.typingSimulation(part.length);
 
           try {
-            await ctx.reply(md.render(part), {
-              parse_mode: "HTML",
-              reply_parameters:
-                isFirstMessage && ctx.chat.type !== "private"
-                  ? {
-                      allow_sending_without_reply: false,
-                      message_id: ctx.message!.message_id,
-                    }
-                  : undefined,
-            });
+            await ctx
+              .reply(md.render(part), {
+                parse_mode: "HTML",
+                reply_parameters:
+                  isFirstMessage && ctx.chat.type !== "private"
+                    ? {
+                        allow_sending_without_reply: false,
+                        message_id: ctx.message!.message_id,
+                      }
+                    : undefined,
+              })
+              .finally(() => typing.stop());
           } catch (_) {
-            await ctx.reply(part, {
-              reply_parameters:
-                isFirstMessage && ctx.chat.type !== "private"
-                  ? {
-                      allow_sending_without_reply: false,
-                      message_id: ctx.message!.message_id,
-                    }
-                  : undefined,
-            });
+            await ctx
+              .reply(part, {
+                reply_parameters:
+                  isFirstMessage && ctx.chat.type !== "private"
+                    ? {
+                        allow_sending_without_reply: false,
+                        message_id: ctx.message!.message_id,
+                      }
+                    : undefined,
+              })
+              .finally(() => typing.stop());
           }
 
           isFirstMessage = false;
@@ -558,13 +565,12 @@ export class GeminiModule<T extends Context> extends Module<T> {
 
       const builder = new MessageBuilder(separator);
 
-      const typing = useType(ctx);
       if (stream)
         for await (const chunk of stream.stream) {
           const chunkText = chunk.text();
           await builder.buildMessage(chunkText, sendMessage);
         }
-      typing.stop();
+
       builder.lines.last && (await sendMessage(builder.lines.last));
 
       const userMessage = new Message();
