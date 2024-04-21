@@ -8,5 +8,5 @@ export class Quote {
 
   @Column({ nullable: true })
   @JoinColumn()
-  context?: string;
+  content?: string;
 }
