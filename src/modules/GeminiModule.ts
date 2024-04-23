@@ -173,7 +173,13 @@ export class GeminiModule<T extends Context> extends Module<T> {
   }
 
   private async reply(ctx: HearsContext<T>) {
-    console.log(`New message from ${ctx.from?.first_name} (${ctx.from?.id})`);
+    console.log(
+      `New message from ${ctx.from?.first_name} (${ctx.from?.id})${
+        ctx.chat.type == "group" || ctx.chat.type == "supergroup"
+          ? ` in chat "${ctx.chat.title}"`
+          : ""
+      }`
+    );
 
     if (!this.availableKey) {
       console.error("KEY LIMIT!");
@@ -544,7 +550,8 @@ export class GeminiModule<T extends Context> extends Module<T> {
   }
 
   async waitNextRequest() {
-    if (this.throttling) console.log(`Throttling ${this.throttling} s...`);
+    if (this.throttling)
+      console.log(`Throttling ${Math.ceil(this.throttling)}s...`);
     while (this.throttling);
     {
       await new Promise((r) => setTimeout(r, this.throttling));
