@@ -602,15 +602,19 @@ export class GeminiModule<T extends Context> extends Module<T> {
       });
     }
   }
-  async waitNextRequest() {
-    let mrk;
-    do {
-      mrk = this.availableKey;
-    } while (
-      mrk &&
-      mrk.lastQueryTime + 60 > Date.now() / 1000 &&
-      mrk.currentQueries >= 1
+
+  get isThrottling(): boolean {
+    const mrk = this.availableKey;
+    return (
+      (mrk &&
+        mrk.lastQueryTime + 60 > Date.now() / 1000 &&
+        mrk.currentQueries >= 1) ||
+      false
     );
+  }
+
+  async waitNextRequest() {
+    while (this.isThrottling);
     {
       await new Promise((r) => setTimeout(r, 100));
     }
