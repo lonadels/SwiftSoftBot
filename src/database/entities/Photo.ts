@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
-import { SupportedMimeTypes } from "../../modules/GeminiModule";
+import { SupportedMimeTypes } from "../../modules/SupportedMimeTypes";
 
 @Entity()
 export class Photo {
