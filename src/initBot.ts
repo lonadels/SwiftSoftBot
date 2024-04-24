@@ -29,8 +29,8 @@ export function initBot() {
   // ignore forwarded messages
   bot.on("msg:forward_origin", () => {});
 
-  bot.use(checkUserExistsOrCreate);
-  bot.use(checkChatExistsOrCreate);
+  bot.use(checkUserExistsOrCreate<BotContext>);
+  bot.use(checkChatExistsOrCreate<BotContext>);
 
   const gemini = new GeminiModule(bot);
   const dashboard = new DashboardModule(bot);

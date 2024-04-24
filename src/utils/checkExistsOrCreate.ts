@@ -3,8 +3,8 @@ import DataSource from "../database/DataSource";
 import User from "../database/entities/User";
 import Chat from "../database/entities/Chat";
 
-export async function checkUserExistsOrCreate(
-  ctx: Context,
+export async function checkUserExistsOrCreate<T extends Context = Context>(
+  ctx: T,
   next: NextFunction
 ): Promise<void> {
   const userRepo = DataSource.getRepository(User);
@@ -26,8 +26,8 @@ export async function checkUserExistsOrCreate(
   await next();
 }
 
-export async function checkChatExistsOrCreate(
-  ctx: Context,
+export async function checkChatExistsOrCreate<T extends Context = Context>(
+  ctx: T,
   next: NextFunction
 ): Promise<void> {
   const chatRepo = DataSource.getRepository(Chat);

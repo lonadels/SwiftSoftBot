@@ -2,9 +2,9 @@ import { Column, JoinColumn, ManyToOne } from "typeorm";
 import User from "./User";
 
 export class Quote {
-  @ManyToOne(() => User, { nullable: true })
+  @Column({ nullable: true, type: "bigint" })
   @JoinColumn()
-  from?: User;
+  from?: number;
 
   @Column({ nullable: true })
   @JoinColumn()
