@@ -18,4 +18,7 @@ export default class Chat {
 
   @OneToMany(() => Message, (message) => message.from)
   messages?: Message[];
+
+  @Column({ default: "" })
+  systemInstructions!: string;
 }

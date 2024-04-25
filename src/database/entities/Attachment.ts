@@ -2,7 +2,7 @@ import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 import { SupportedMimeTypes } from "../../modules/SupportedMimeTypes";
 
 @Entity()
-export class Photo {
+export class Attachment {
   @PrimaryGeneratedColumn({ type: "bigint" })
   id!: number;
 

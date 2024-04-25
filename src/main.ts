@@ -10,6 +10,7 @@ import DataSource from "./database/DataSource";
 import { initBot } from "./initBot";
 
 import "./extensions/array";
+import "./extensions/string";
 
 function main() {
   console.log("Initializing database...");

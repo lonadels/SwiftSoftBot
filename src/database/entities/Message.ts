@@ -12,7 +12,7 @@ import {
 } from "typeorm";
 import User from "./User";
 import Chat from "./Chat";
-import { Photo } from "./Photo";
+import { Attachment } from "./Attachment";
 import { Quote } from "./Quote";
 
 @Entity()
@@ -34,11 +34,11 @@ export default class Message {
   @CreateDateColumn()
   at!: Date;
 
-  @ManyToMany(() => Photo)
+  @ManyToMany(() => Attachment)
   @JoinTable()
-  photos?: Photo[];
+  attachments?: Attachment[];
 
-  @Column()
+  @Column({ default: "" })
   content!: string;
 
   @Column(() => Quote)

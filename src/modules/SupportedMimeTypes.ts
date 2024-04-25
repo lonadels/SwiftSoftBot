@@ -12,4 +12,5 @@ export enum SupportedMimeTypes {
   OGG = "audio/ogg",
   FLAC = "audio/flac",
   PDF = "application/pdf",
+  // WEBM = "video/webm",
 }

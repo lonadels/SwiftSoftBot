@@ -1,6 +1,6 @@
 import { autoRetry } from "@grammyjs/auto-retry";
 import { ParseModeFlavor, hydrateReply } from "@grammyjs/parse-mode";
-import { Bot, Context } from "grammy";
+import { Bot, Context, matchFilter } from "grammy";
 import { HydrateFlavor, hydrate } from "@grammyjs/hydrate";
 import {
   checkChatExistsOrCreate,
@@ -27,6 +27,7 @@ export function initBot() {
   bot.use(hydrateReply);
 
   // ignore forwarded messages
+  //bot.drop(matchFilter("msg:forward_origin"));
   bot.on("msg:forward_origin", () => {});
 
   bot.use(checkUserExistsOrCreate<BotContext>);
