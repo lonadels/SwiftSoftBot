@@ -106,7 +106,8 @@ export class GeminiModule<T extends Context> extends Module<T> {
   }
 
   async onMessage(ctx: Filter<T, "message">) {
-    const match = ctx.message.text?.match(
+    const text = ctx.message.caption || ctx.message.text;
+    const match = text?.match(
       /^(свифи|свифi|swifie|@swiftsoftbot\s)?(.+)?/imsu
     );
 
@@ -471,7 +472,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
       }
     }
 
-    const text = ctx.message.text;
+    const text = ctx.message.caption || ctx.message.text;
 
     await this.waitNextRequest();
     const currentKey = this.availableKey;
