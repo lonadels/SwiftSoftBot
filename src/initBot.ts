@@ -33,16 +33,16 @@ export function initBot() {
   bot.use(checkUserExistsOrCreate<BotContext>);
   bot.use(checkChatExistsOrCreate<BotContext>);
 
-  const gemini = new GeminiModule(bot);
   const dashboard = new DashboardModule(bot);
   const greeting = new GreetingModule(bot);
   const joke = new JokeModule(bot);
+  const gemini = new GeminiModule(bot);
 
   bot.api.setMyCommands([
-    ...gemini.commands,
     ...dashboard.commands,
     ...greeting.commands,
     ...joke.commands,
+    ...gemini.commands,
   ]);
 
   bot.catch(errorHandler);
