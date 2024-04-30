@@ -11,6 +11,7 @@ import { initBot } from "./initBot";
 
 import "./extensions/array";
 import "./extensions/string";
+import "./extensions/sleep";
 
 function main() {
   console.log("Initializing database...");
