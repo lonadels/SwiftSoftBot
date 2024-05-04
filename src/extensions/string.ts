@@ -1,9 +1,9 @@
 declare global {
-  interface String {
-    isNullOrEmpty(): boolean;
-  }
+    interface String {
+        isNullOrEmpty(): boolean;
+    }
 }
 
 String.prototype.isNullOrEmpty = function (): boolean {
-  return this === null || this.trim().length === 0;
+    return this === null || this.trim().length === 0;
 };

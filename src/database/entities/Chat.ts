@@ -1,24 +1,17 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  OneToOne,
-  PrimaryGeneratedColumn,
-} from "typeorm";
+import {Column, Entity, OneToMany, PrimaryGeneratedColumn,} from "typeorm";
 import Message from "./Message";
+
 @Entity()
 export default class Chat {
-  @PrimaryGeneratedColumn({ type: "bigint" })
-  id!: number;
+    @PrimaryGeneratedColumn({type: "bigint"})
+    id!: number;
 
-  @Column({ type: "bigint", nullable: true, unique: true })
-  telegramId?: number;
+    @Column({type: "bigint", nullable: true, unique: true})
+    telegramId?: number;
 
-  @OneToMany(() => Message, (message) => message.from)
-  messages?: Message[];
+    @OneToMany(() => Message, (message) => message.from)
+    messages?: Message[];
 
-  @Column({ default: "" })
-  systemInstructions!: string;
+    @Column({default: ""})
+    systemInstructions!: string;
 }

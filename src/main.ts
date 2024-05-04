@@ -1,28 +1,25 @@
-import * as fs from "fs";
 import * as dotenv from "dotenv";
-
-dotenv.config(); // ALWAYS BE FIRST!
-
 import "reflect-metadata";
-
 import DataSource from "./database/DataSource";
 
-import { initBot } from "./initBot";
+import {initBot} from "./initBot";
 
 import "./extensions/array";
 import "./extensions/string";
 import "./extensions/sleep";
+import "./extensions/number"
 
-function main() {
-  console.log("Initializing database...");
-  DataSource.initialize().then(async () => {
-    console.log("Initializing bot...");
-    try {
-      initBot();
-    } catch (e) {
-      console.error(e);
-    }
-  });
+async function main() {
+    console.log("Initializing database...");
+    DataSource.initialize().then(async () => {
+        console.log("Initializing bot...");
+        try {
+            await initBot();
+        } catch (e) {
+            console.error(e);
+        }
+    });
 }
 
-main();
+main().then(_ => {
+});
