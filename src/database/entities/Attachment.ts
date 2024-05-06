@@ -1,5 +1,5 @@
 import {Column, Entity, PrimaryGeneratedColumn} from "typeorm";
-import {SupportedMimeTypes} from "../../modules/SupportedMimeTypes";
+import {SupportedMimeTypes} from "../../modules/GeminiModule/SupportedMimeTypes";
 
 @Entity()
 export class Attachment {
