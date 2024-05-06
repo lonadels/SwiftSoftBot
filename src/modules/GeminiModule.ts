@@ -27,6 +27,7 @@ import {MessageBuilder} from "./GeminiModule/MessageBuilder";
 import {typingSimulation} from "../utils/typingSimulation";
 import * as crypto from "crypto";
 import * as mime from "mime-types";
+import {getDevelopers} from "../utils/getDevelopers";
 
 type TypedAttachment = Document | Video | Animation | Voice;
 type Attachment = TypedAttachment | VideoNote | PhotoSize | Sticker | undefined;
@@ -289,6 +290,12 @@ export class GeminiModule<T extends Context> extends Module<T> {
         ctx: Filter<T, "message">,
         attachments: Attachment[] = []
     ) {
+
+        const attachmentRepo = DataSource.getRepository(MessageAttachment);
+        const messageRepo = DataSource.getRepository(Message);
+        const userRepo = DataSource.getRepository(User);
+        const chatRepo = DataSource.getRepository(Chat);
+
         console.log(
             `New message from ${ctx.from?.first_name} (${ctx.from?.id})${
                 ctx.chat.type == "group" || ctx.chat.type == "supergroup"
@@ -299,18 +306,16 @@ export class GeminiModule<T extends Context> extends Module<T> {
 
         if (!this.availableKey) {
             console.error("KEY LIMIT!");
-            await ctx.api.sendMessage(process.env.DEVELOPER_ID!, "KEY LIMIT!");
+
+            for await( const developer of await getDevelopers() ){
+                await ctx.api.sendMessage(developer.telegramId, "KEY LIMIT!");
+            }
             return;
         }
 
         this.hash = this.md5(crypto.randomUUID());
 
         const separator = `$NEXTMESSAGE$`;
-
-        const attachmentRepo = DataSource.getRepository(MessageAttachment);
-        const messageRepo = DataSource.getRepository(Message);
-        const userRepo = DataSource.getRepository(User);
-        const chatRepo = DataSource.getRepository(Chat);
 
         const chat = await chatRepo.findOneBy({telegramId: ctx.chat?.id});
         const user = await userRepo.findOneBy({telegramId: ctx.from?.id});
@@ -631,8 +636,9 @@ export class GeminiModule<T extends Context> extends Module<T> {
         } catch (err) {
             console.error(err);
 
+            for await( const developer of await getDevelopers() )
             await ctx.api.sendMessage(
-                process.env.DEVELOPER_ID!,
+                developer.telegramId,
                 `<pre>${this.md.utils.escapeHtml(err as string)}</pre>`,
                 {
                     parse_mode: "HTML",
