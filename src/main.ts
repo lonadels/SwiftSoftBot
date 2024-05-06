@@ -1,4 +1,3 @@
-import * as dotenv from "dotenv";
 import "reflect-metadata";
 import DataSource from "./database/DataSource";
 

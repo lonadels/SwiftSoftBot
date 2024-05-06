@@ -1365,13 +1365,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"googleapis@npm:^135.0.0":
-  version: 135.0.0
-  resolution: "googleapis@npm:135.0.0"
+"googleapis@npm:^136.0.0":
+  version: 136.0.0
+  resolution: "googleapis@npm:136.0.0"
   dependencies:
     google-auth-library: "npm:^9.0.0"
     googleapis-common: "npm:^7.0.0"
-  checksum: c98ac74f091eaf209c32e856842490aa8d650b295964cbc576735285fa1b7d667922027e26c2f88600034b5fedef20a6d906d673a6247e28d8edae5f8dcc7d01
+  checksum: d506f2d562c1d9886e829fee7358f381e00e567fce2fdbbb6a57d623dced5cfdbc3b521fe7ff94dd4e446bc96c27585c9d439368acee9dfcc6f5af2e0a434646
   languageName: node
   linkType: hard
 
@@ -2403,7 +2403,7 @@ __metadata:
     crypto: "npm:^1.0.1"
     date-fns: "npm:^3.6.0"
     dotenv: "npm:^16.3.2"
-    googleapis: "npm:^135.0.0"
+    googleapis: "npm:^136.0.0"
     grammy: "npm:^1.21.2"
     libphonenumber-js: "npm:^1.10.54"
     lodash: "npm:^4.17.21"

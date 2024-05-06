@@ -10,7 +10,7 @@ export abstract class Module<T extends Context = Context> {
         return this._bot;
     }
 
-    constructor(bot: Bot<T>) {
+    protected constructor(bot: Bot<T>) {
         console.log(`Initializing module ${this.constructor.name}...`);
         this._bot = bot;
     }

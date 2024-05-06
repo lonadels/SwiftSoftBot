@@ -48,7 +48,7 @@
     "crypto": "^1.0.1",
     "date-fns": "^3.6.0",
     "dotenv": "^16.3.2",
-    "googleapis": "^135.0.0",
+    "googleapis": "^136.0.0",
     "grammy": "^1.21.2",
     "libphonenumber-js": "^1.10.54",
     "lodash": "^4.17.21",

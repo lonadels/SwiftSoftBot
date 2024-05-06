@@ -1,7 +1,9 @@
 declare global {
     interface Number {
         ceil(): number;
+
         floor(): number;
+
         round(): number;
     }
 }
