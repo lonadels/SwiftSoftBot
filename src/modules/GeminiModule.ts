@@ -1,8 +1,7 @@
-import {Bot, CommandContext, Context, Filter} from "grammy";
-import {Module} from "./Module";
+import {Bot, CommandContext, Context, Filter, matchFilter} from "grammy";
+import {CommandWithScope, Module} from "./Module";
 import {
     Animation,
-    BotCommand,
     Document,
     Message as TelegramMessage,
     PhotoSize,
@@ -76,9 +75,9 @@ export class GeminiModule<T extends Context> extends Module<T> {
 
     private conversation: Map<number, ChatSession> = new Map();
 
-    public readonly commands: BotCommand[] = [
+    public readonly commands: CommandWithScope[] = [
         {command: "clear", description: "Забыть историю переписки в чате"},
-        {command: "prompt", description: "Дополнить системные инструкции"},
+        {command: "prompt", description: "Дополнить системные инструкции"}
     ];
 
     private mediaGroups: Map<string, Attachment[]> = new Map();
@@ -135,8 +134,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
         );
 
         this.onMessage = this.onMessage.bind(this);
-
-        this.bot.on("message", this.onMessage);
+        bot.on("message").drop(matchFilter(':forward_origin'), this.onMessage);
     }
 
     getAllAttachments(message: TelegramMessage): Attachment[] {
@@ -157,7 +155,42 @@ export class GeminiModule<T extends Context> extends Module<T> {
         ];
     }
 
+    async waitForUpdates(ctx: Filter<T, "message">) {
+        const mediaGroupId = ctx.message.media_group_id;
+
+        let updateId = ctx.update.update_id;
+        let updates: Update[];
+
+        do {
+            updates = await this.bot.api.getUpdates({
+                offset: updateId + 1,
+                allowed_updates: ["message"],
+            });
+
+            for await (const update of updates) {
+                if (mediaGroupId && update.message?.media_group_id === mediaGroupId) {
+                    const groupAttachments: Attachment[] = this.getAllAttachments(
+                        update.message
+                    );
+
+                    this.mediaGroups.set(mediaGroupId, [
+                        ...(this.mediaGroups.get(mediaGroupId) ?? []),
+                        ...groupAttachments,
+                    ]);
+                }
+                updateId = update.update_id;
+            }
+
+            await sleep(100);
+        } while (updates.length > 0);
+
+        return this.getAllAttachments(ctx.message).concat(
+            mediaGroupId ? this.mediaGroups.get(mediaGroupId) : []
+        );
+    }
+
     async onMessage(ctx: Filter<T, "message">) {
+
         const text = ctx.message.caption || ctx.message.text;
         const match = text?.match(
             /^(свифи|свифi|swifie|@swiftsoftbot\s)?(.+)?/imsu
@@ -168,40 +201,9 @@ export class GeminiModule<T extends Context> extends Module<T> {
             ctx.chat.type == "private" ||
             ctx.message?.reply_to_message?.from!.id === this.bot.botInfo.id
         ) {
-            const mediaGroupId = ctx.message.media_group_id;
+            if (ctx.message.media_group_id && this.mediaGroups.has(ctx.message.media_group_id)) return;
 
-            if (mediaGroupId && this.mediaGroups.has(mediaGroupId)) return;
-
-            let updateId = ctx.update.update_id;
-            let updates: Update[];
-
-            do {
-                updates = await this.bot.api.getUpdates({
-                    offset: updateId + 1,
-                    allowed_updates: ["message"],
-                });
-
-                for await (const update of updates) {
-                    if (mediaGroupId && update.message?.media_group_id === mediaGroupId) {
-                        const groupAttachments: Attachment[] = this.getAllAttachments(
-                            update.message
-                        );
-
-                        this.mediaGroups.set(mediaGroupId, [
-                            ...(this.mediaGroups.get(mediaGroupId) ?? []),
-                            ...groupAttachments,
-                        ]);
-                    }
-                    updateId = update.update_id;
-                }
-
-                await sleep(100);
-            } while (updates.length > 0);
-
-            const attachments = this.getAllAttachments(ctx.message).concat(
-                mediaGroupId ? this.mediaGroups.get(mediaGroupId) : []
-            );
-
+            const attachments = await this.waitForUpdates(ctx);
             await this.reply(ctx, attachments);
         }
     }
@@ -307,7 +309,7 @@ export class GeminiModule<T extends Context> extends Module<T> {
         if (!this.availableKey) {
             console.error("KEY LIMIT!");
 
-            for await( const developer of await getDevelopers() ){
+            for await(const developer of await getDevelopers()) {
                 await ctx.api.sendMessage(developer.telegramId, "KEY LIMIT!");
             }
             return;
@@ -636,14 +638,14 @@ export class GeminiModule<T extends Context> extends Module<T> {
         } catch (err) {
             console.error(err);
 
-            for await( const developer of await getDevelopers() )
-            await ctx.api.sendMessage(
-                developer.telegramId,
-                `<pre>${this.md.utils.escapeHtml(err as string)}</pre>`,
-                {
-                    parse_mode: "HTML",
-                }
-            );
+            for await(const developer of await getDevelopers())
+                await ctx.api.sendMessage(
+                    developer.telegramId,
+                    `<pre>${this.md.utils.escapeHtml(err as string)}</pre>`,
+                    {
+                        parse_mode: "HTML",
+                    }
+                );
 
             await ctx.reply(
                 "<b>Простите, но произошла ошибка ☹️.</b>\nИнформация об этом уже направлена разработчикам.",

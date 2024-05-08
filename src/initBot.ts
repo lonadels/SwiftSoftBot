@@ -1,6 +1,6 @@
 import {autoRetry} from "@grammyjs/auto-retry";
 import {hydrateReply, ParseModeFlavor} from "@grammyjs/parse-mode";
-import {Bot, Context, matchFilter} from "grammy";
+import {Bot, Context} from "grammy";
 import {hydrate, HydrateFlavor} from "@grammyjs/hydrate";
 import {checkChatExistsOrCreate, checkUserExistsOrCreate,} from "./utils/checkExistsOrCreate";
 import {errorHandler} from "./errorHandler";
@@ -9,6 +9,7 @@ import {JokeModule} from "./modules/JokeModule";
 import {GreetingModule} from "./modules/GreetingModule";
 import {DashboardModule} from "./modules/DashboardModule";
 import {GeminiModule} from "./modules/GeminiModule";
+import {CommandWithScope} from "./modules/Module";
 
 type BotContext = ParseModeFlavor<HydrateFlavor<Context>> & MenuFlavor;
 
@@ -24,23 +25,28 @@ export async function initBot() {
 
     bot.catch(errorHandler);
 
-    // ignore forwarded messages
-    bot.drop(matchFilter("msg:forward_origin"));
-
     bot.use(checkUserExistsOrCreate);
     bot.use(checkChatExistsOrCreate);
 
-    const dashboard = new DashboardModule(bot);
-    const greeting = new GreetingModule(bot);
-    const joke = new JokeModule(bot);
-    const gemini = new GeminiModule(bot);
+    const commands: CommandWithScope[][] = [];
 
-    await bot.api.setMyCommands([
-        ...dashboard.commands,
-        ...greeting.commands,
-        ...joke.commands,
-        ...gemini.commands,
-    ]);
+    const modules = [DashboardModule, GreetingModule, JokeModule, GeminiModule];
+    modules.forEach(module => {
+        const initializedModule = new module(bot);
+        commands.push(initializedModule.commands);
+    });
+
+    const commandsByScope = commands
+        .flatMap(commandGroup => commandGroup)
+        .reduce((map, command) => {
+            const scope = command.scope ?? {type: "default"};
+            const commands = map.get(JSON.stringify(scope)) || [];
+            return map.set(JSON.stringify(scope), [...commands, command]);
+        }, new Map<string, CommandWithScope[]>());
+
+    for (const [scope, commands] of commandsByScope.entries()) {
+        await bot.api.setMyCommands(commands, {scope: JSON.parse(scope)});
+    }
 
     await bot.start({
         onStart(botInfo) {
